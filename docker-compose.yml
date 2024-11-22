@@ -9,12 +9,26 @@ services:
       - blob-data:/data
     environment:
       - PYTHONUNBUFFERED=1
-      # 添加其他环境变量配置
+      # 基础配置
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - REQUIRE_AUTH=${REQUIRE_AUTH:-true}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE:-10485760}
       - STORAGE_TYPE=${STORAGE_TYPE:-local}
+      
+      # 存储配置
+      - LOCAL_STORAGE_PATH=/data/files
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-}
+      - S3_REGION_NAME=${S3_REGION_NAME:-}
+      
+      # 功能开关
+      - ENABLE_OCR=${ENABLE_OCR:-false}
+      - ENABLE_VISION=${ENABLE_VISION:-true}
+      - ENABLE_AZURE_SPEECH=${ENABLE_AZURE_SPEECH:-false}
+      
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
