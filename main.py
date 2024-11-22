@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from handlers.processor import process_file
+from handlers.processor import process_file, read_file_size
 from config import *
 from handlers.ocr import create_ocr_task, deprecated_could_enable_ocr
 from middleware.auth import AuthMiddleware
@@ -285,11 +285,14 @@ async def update_root_config(request: Request):
         RESPONSE_SUCCESS_CODE = config.RESPONSE_SUCCESS_CODE
         RESPONSE_ERROR_CODE = config.RESPONSE_ERROR_CODE
         
-        # Also update CORS middleware
+        # Update CORS middleware
         for middleware in app.user_middleware:
             if isinstance(middleware.cls, CORSMiddleware):
                 middleware.options["allow_origins"] = CORS_ALLOW_ORIGINS
                 break
+        
+        # Save configuration to file
+        config.save_config_file()
         
         return format_response(True, "Configuration updated successfully")
         

@@ -1,6 +1,10 @@
 from os import environ
 import secrets
 from typing import List
+import json
+import os
+
+CONFIG_FILE = "config.json"
 
 def to_str(key: str, default: str = "") -> str:
     """Converts string to string."""
@@ -140,3 +144,81 @@ def format_upload_data(url: str = "", filename: str = "", is_image: bool = False
         RESPONSE_FILENAME_FIELD: filename,
         RESPONSE_IMAGE_FIELD: is_image
     }
+
+def load_config_file():
+    """Load configuration from file."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                for key, value in config.items():
+                    if isinstance(value, list):
+                        environ[key] = ",".join(str(x) for x in value)
+                    elif isinstance(value, bool):
+                        environ[key] = str(value).lower()
+                    else:
+                        environ[key] = str(value)
+        except Exception as e:
+            print(f"Error loading config file: {e}")
+
+def save_config_file():
+    """Save configuration to file."""
+    config = {
+        # Auth Config
+        "ADMIN_USER": ADMIN_USER,
+        "ADMIN_PASSWORD": ADMIN_PASSWORD,
+        "WHITELIST_DOMAINS": WHITELIST_DOMAINS,
+        "WHITELIST_IPS": WHITELIST_IPS,
+        "REQUIRE_AUTH": REQUIRE_AUTH,
+        
+        # General Config
+        "CORS_ALLOW_ORIGINS": CORS_ALLOW_ORIGINS,
+        "MAX_FILE_SIZE": MAX_FILE_SIZE,
+        "PDF_MAX_IMAGES": PDF_MAX_IMAGES,
+        "AZURE_SPEECH_KEY": AZURE_SPEECH_KEY,
+        "AZURE_SPEECH_REGION": AZURE_SPEECH_REGION,
+        
+        # Storage Config
+        "STORAGE_TYPE": STORAGE_TYPE,
+        "LOCAL_STORAGE_DOMAIN": LOCAL_STORAGE_DOMAIN,
+        "S3_BUCKET": S3_BUCKET,
+        "S3_ACCESS_KEY": S3_ACCESS_KEY,
+        "S3_SECRET_KEY": S3_SECRET_KEY,
+        "S3_REGION": S3_REGION,
+        "S3_DOMAIN": S3_DOMAIN,
+        "S3_DIRECT_URL_DOMAIN": S3_DIRECT_URL_DOMAIN,
+        "S3_SIGN_VERSION": S3_SIGN_VERSION,
+        
+        # Telegram Config
+        "TG_ENDPOINT": TG_ENDPOINT,
+        "TG_PASSWORD": TG_PASSWORD,
+        
+        # File API Config
+        "FILE_API_ENDPOINT": FILE_API_ENDPOINT,
+        "FILE_API_KEY": FILE_API_KEY,
+        
+        # OCR Config
+        "OCR_ENDPOINT": OCR_ENDPOINT,
+        "OCR_SKIP_MODELS": OCR_SKIP_MODELS,
+        "OCR_SPEC_MODELS": OCR_SPEC_MODELS,
+        
+        # Response Format Config
+        "RESPONSE_CODE_FIELD": RESPONSE_CODE_FIELD,
+        "RESPONSE_MSG_FIELD": RESPONSE_MSG_FIELD,
+        "RESPONSE_SN_FIELD": RESPONSE_SN_FIELD,
+        "RESPONSE_DATA_FIELD": RESPONSE_DATA_FIELD,
+        "RESPONSE_URL_FIELD": RESPONSE_URL_FIELD,
+        "RESPONSE_FILENAME_FIELD": RESPONSE_FILENAME_FIELD,
+        "RESPONSE_IMAGE_FIELD": RESPONSE_IMAGE_FIELD,
+        "RESPONSE_SUCCESS_CODE": RESPONSE_SUCCESS_CODE,
+        "RESPONSE_ERROR_CODE": RESPONSE_ERROR_CODE
+    }
+    
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
+    except Exception as e:
+        print(f"Error saving config file: {e}")
+
+# Load config from file at startup
+load_config_file()
