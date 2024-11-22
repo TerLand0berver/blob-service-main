@@ -26,12 +26,17 @@ def is_browser_resource(path: str) -> bool:
         "/favicon.ico",
         "/robots.txt",
         "/.well-known/",
+        "/static/",
     }
     return any(path.startswith(prefix) for prefix in browser_resources)
 
-def is_static_file(path: str) -> bool:
-    """Check if path is a static file."""
-    return path.startswith("/static/")
+def is_api_endpoint(path: str) -> bool:
+    """Check if path is an API endpoint."""
+    return path.startswith("/api/")
+
+def is_config_endpoint(path: str) -> bool:
+    """Check if path is a config endpoint."""
+    return path.startswith("/api/config") or path == "/config"
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -43,56 +48,43 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Always allow browser resources
         if is_browser_resource(path):
             return await call_next(request)
-        
+            
         # Check if client is whitelisted
         is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
         
-        # Check if request is for config endpoints
-        is_config_endpoint = path.startswith("/api/config") or path == "/config"
-        
-        # If client is whitelisted and trying to access config, deny access
-        if is_whitelisted and is_config_endpoint:
-            raise HTTPException(
-                status_code=403,
-                detail="Whitelisted clients cannot modify configuration"
-            )
-        
-        # If client is whitelisted, allow access
-        if is_whitelisted:
+        # API endpoints only accessible by whitelisted clients
+        if is_api_endpoint(path):
+            if not is_whitelisted:
+                raise HTTPException(
+                    status_code=403,
+                    detail="API endpoints are only accessible by whitelisted clients"
+                )
             return await call_next(request)
-        
-        # If auth is not required and not accessing config
-        if not REQUIRE_AUTH and not is_config_endpoint:
-            # For static files and index page
-            if is_static_file(path) or path == "/" or path == "/index.html":
-                return await call_next(request)
             
-            # For API endpoints, still require auth
-            if not path.startswith("/api/"):
-                return await call_next(request)
-        
-        # For all other cases, require authentication
-        auth = request.headers.get("Authorization")
-        if not auth:
-            raise HTTPException(
-                status_code=401,
-                detail="Unauthorized",
-                headers={"WWW-Authenticate": "Basic"},
-            )
-            
-        try:
-            scheme, credentials = auth.split()
-            if scheme.lower() != "basic":
-                raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+        # Config endpoints always require authentication
+        if is_config_endpoint(path):
+            auth = request.headers.get("Authorization")
+            if not auth:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Unauthorized",
+                    headers={"WWW-Authenticate": "Basic"},
+                )
                 
-            decoded = base64.b64decode(credentials).decode("utf-8")
-            username, password = decoded.split(":")
-            
-            if not secrets.compare_digest(username, ADMIN_USER) or \
-               not secrets.compare_digest(password, ADMIN_PASSWORD):
+            try:
+                scheme, credentials = auth.split()
+                if scheme.lower() != "basic":
+                    raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+                    
+                decoded = base64.b64decode(credentials).decode("utf-8")
+                username, password = decoded.split(":")
+                
+                if not secrets.compare_digest(username, ADMIN_USER) or \
+                   not secrets.compare_digest(password, ADMIN_PASSWORD):
+                    raise HTTPException(status_code=401, detail="Invalid credentials")
+                    
+            except Exception as e:
                 raise HTTPException(status_code=401, detail="Invalid credentials")
-                
-        except Exception as e:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-            
+        
+        # All other paths are accessible
         return await call_next(request)
