@@ -7,6 +7,7 @@ from config import *
 from handlers.ocr import create_ocr_task, deprecated_could_enable_ocr
 from middleware.auth import AuthMiddleware
 import os
+import secrets
 
 app = FastAPI()
 
@@ -133,6 +134,22 @@ async def update_root_config(request: Request):
                 else:
                     os.environ[key] = str(value)
 
+        # Clear existing environment variables first
+        env_vars = [
+            "ADMIN_USER", "ADMIN_PASSWORD", "REQUIRE_AUTH", "WHITELIST_DOMAINS", "WHITELIST_IPS",
+            "CORS_ALLOW_ORIGINS", "MAX_FILE_SIZE", "PDF_MAX_IMAGES",
+            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION",
+            "STORAGE_TYPE", "LOCAL_STORAGE_DOMAIN",
+            "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION", "S3_DOMAIN",
+            "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
+            "TG_ENDPOINT", "TG_PASSWORD",
+            "FILE_API_ENDPOINT", "FILE_API_KEY",
+            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS"
+        ]
+        for var in env_vars:
+            if var in os.environ:
+                del os.environ[var]
+
         # Update Auth settings
         update_env("ADMIN_USER", config.get("admin_user"))
         update_env("ADMIN_PASSWORD", config.get("admin_password"))
@@ -191,6 +208,7 @@ async def update_root_config(request: Request):
         global FILE_API_ENDPOINT, FILE_API_KEY
         global OCR_ENDPOINT, OCR_SKIP_MODELS, OCR_SPEC_MODELS
         
+        # Update all global variables
         ADMIN_USER = config.ADMIN_USER
         ADMIN_PASSWORD = config.ADMIN_PASSWORD
         REQUIRE_AUTH = config.REQUIRE_AUTH
@@ -232,10 +250,20 @@ async def update_root_config(request: Request):
         # Also update CORS middleware
         app.user_middleware[0].options["allow_origins"] = CORS_ALLOW_ORIGINS
         
-        return {"status": "success", "message": "Configuration updated successfully"}
+        return {
+            "code": 0,
+            "msg": "Configuration updated successfully",
+            "sn": secrets.token_hex(8),
+            "data": {"status": "success"}
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return {
+            "code": 1,
+            "msg": str(e),
+            "sn": secrets.token_hex(8),
+            "data": {"status": "error"}
+        }
 
 
 @app.get("/favicon.ico")
@@ -268,16 +296,28 @@ async def upload(
             enable_vision=enable_vision,
             save_all=save_all,
         )
+
+        # 检查是否是图片类型
+        is_image = filetype in ["image", "png", "jpg", "jpeg", "gif", "webp"]
+
         return {
-            "status": True,
-            "content": contents,
-            "type": filetype,
-            "error": "",
+            "code": 0,
+            "msg": "success",
+            "sn": secrets.token_hex(8),
+            "data": {
+                "url": contents,
+                "filename": file.filename,
+                "image": is_image
+            }
         }
     except Exception as e:
         return {
-            "status": False,
-            "content": "",
-            "type": "error",
-            "error": str(e),
+            "code": 1,
+            "msg": str(e),
+            "sn": secrets.token_hex(8),
+            "data": {
+                "url": "",
+                "filename": file.filename if file else "",
+                "image": False
+            }
         }
