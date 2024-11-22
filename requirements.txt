@@ -1,0 +1,16 @@
+requests
+fastapi
+uvicorn[standard]
+python-multipart
+
+pymupdf
+python-docx
+python-pptx
+openpyxl
+xlrd
+
+boto3
+botocore
+azure-cognitiveservices-speech~=1.34.1
+
+cryptography
