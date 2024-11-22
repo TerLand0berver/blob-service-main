@@ -21,14 +21,17 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 def is_browser_resource(path: str) -> bool:
-    """Check if path is a browser resource that should always be accessible."""
+    """Check if path is a browser-only resource that should always be accessible."""
     browser_resources = {
         "/favicon.ico",
         "/robots.txt",
         "/.well-known/",
-        "/static/",
     }
     return any(path.startswith(prefix) for prefix in browser_resources)
+
+def is_static_file(path: str) -> bool:
+    """Check if path is a static file."""
+    return path.startswith("/static/")
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -37,15 +40,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
         client_ip = get_client_ip(request)
         path = request.url.path
         
-        # Skip auth for browser resources
+        # Always allow browser resources
         if is_browser_resource(path):
             return await call_next(request)
         
-        # Check if request is for config endpoints
-        is_config_endpoint = path.startswith("/api/config") or path == "/config"
-        
         # Check if client is whitelisted
         is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
+        
+        # Check if request is for config endpoints
+        is_config_endpoint = path.startswith("/api/config") or path == "/config"
         
         # If client is whitelisted and trying to access config, deny access
         if is_whitelisted and is_config_endpoint:
@@ -53,15 +56,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=403,
                 detail="Whitelisted clients cannot modify configuration"
             )
-            
+        
         # If client is whitelisted, allow access
         if is_whitelisted:
             return await call_next(request)
-            
-        # If auth is not required and not accessing config, allow access
+        
+        # If auth is not required and not accessing config
         if not REQUIRE_AUTH and not is_config_endpoint:
-            return await call_next(request)
+            # For static files and index page
+            if is_static_file(path) or path == "/" or path == "/index.html":
+                return await call_next(request)
             
+            # For API endpoints, still require auth
+            if not path.startswith("/api/"):
+                return await call_next(request)
+        
         # For all other cases, require authentication
         auth = request.headers.get("Authorization")
         if not auth:
