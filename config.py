@@ -58,10 +58,23 @@ def to_int(value: str, default: int) -> int:
 
 
 # Auth Config
-ADMIN_USER = to_str("ADMIN_USER", "telagod")
-ADMIN_PASSWORD = to_str("ADMIN_PASSWORD", secrets.token_urlsafe(16))
-WHITELIST_DOMAINS = to_list("WHITELIST_DOMAINS", [])
-REQUIRE_AUTH = to_str("REQUIRE_AUTH", "true").lower() == "true"
+ADMIN_USER = to_str("ADMIN_USER", "root")  # Default admin username
+ADMIN_PASSWORD = to_str("ADMIN_PASSWORD", "root123456")  # Default admin password
+WHITELIST_DOMAINS = to_list("WHITELIST_DOMAINS", [])  # Whitelisted domains
+WHITELIST_IPS = to_list("WHITELIST_IPS", [])  # Whitelisted IP addresses
+REQUIRE_AUTH = to_bool("REQUIRE_AUTH", True)  # Default to require auth
+
+def is_ip_allowed(ip: str) -> bool:
+    """Check if IP is in whitelist."""
+    if not WHITELIST_IPS:
+        return False
+    return ip in WHITELIST_IPS or ip.startswith(tuple(WHITELIST_IPS))
+
+def is_domain_allowed(domain: str) -> bool:
+    """Check if domain is in whitelist."""
+    if not WHITELIST_DOMAINS:
+        return False
+    return domain in WHITELIST_DOMAINS or domain.endswith(tuple(WHITELIST_DOMAINS))
 
 # General Config
 CORS_ALLOW_ORIGINS = to_list("CORS_ALLOW_ORIGINS", ["*"])  # CORS Allow Origins

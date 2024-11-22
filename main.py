@@ -38,9 +38,11 @@ async def config_page():
 @app.get("/api/config")
 async def get_config():
     return {
+        "admin_user": ADMIN_USER,
         "admin_password": ADMIN_PASSWORD,
         "require_auth": REQUIRE_AUTH,
         "whitelist_domains": WHITELIST_DOMAINS,
+        "whitelist_ips": WHITELIST_IPS,
         "storage_type": STORAGE_TYPE,
         "api_endpoint": FILE_API_ENDPOINT,
         "api_key": FILE_API_KEY
@@ -53,8 +55,11 @@ async def update_config(request: Request):
         config = await request.json()
         
         # Update environment variables
+        os.environ["ADMIN_USER"] = config["admin_user"]
+        os.environ["ADMIN_PASSWORD"] = config["admin_password"]
         os.environ["REQUIRE_AUTH"] = str(config["require_auth"]).lower()
         os.environ["WHITELIST_DOMAINS"] = ",".join(config["whitelist_domains"])
+        os.environ["WHITELIST_IPS"] = ",".join(config["whitelist_ips"])
         os.environ["STORAGE_TYPE"] = config["storage_type"]
         os.environ["FILE_API_ENDPOINT"] = config["api_endpoint"]
         os.environ["FILE_API_KEY"] = config["api_key"]

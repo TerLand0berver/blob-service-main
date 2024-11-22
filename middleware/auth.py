@@ -2,29 +2,31 @@ from fastapi import Request, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 import secrets
+import base64
 from typing import Optional
 from urllib.parse import urlparse
 
-from config import ADMIN_USER, ADMIN_PASSWORD, WHITELIST_DOMAINS, REQUIRE_AUTH
+from config import (
+    ADMIN_USER, ADMIN_PASSWORD, WHITELIST_DOMAINS, WHITELIST_IPS,
+    REQUIRE_AUTH, is_ip_allowed, is_domain_allowed
+)
 
 security = HTTPBasic()
 
-def is_whitelisted(origin: Optional[str]) -> bool:
-    """Check if origin is whitelisted"""
-    if not origin or not WHITELIST_DOMAINS:
-        return False
-    
-    try:
-        domain = urlparse(origin).netloc
-        return domain in WHITELIST_DOMAINS
-    except:
-        return False
+def get_client_ip(request: Request) -> str:
+    """Get client IP from request headers or connection."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else ""
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Skip auth for whitelisted domains
+        # Skip auth for whitelisted domains and IPs
         origin = request.headers.get("origin")
-        if is_whitelisted(origin):
+        client_ip = get_client_ip(request)
+        
+        if is_domain_allowed(origin) or is_ip_allowed(client_ip):
             return await call_next(request)
             
         # Skip auth for static files and non-api paths
