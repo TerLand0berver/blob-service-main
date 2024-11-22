@@ -57,6 +57,7 @@ pip-delete-this-directory.txt
 
 # Static Files
 static/*
+!static/*.html
 
 # Unit test / coverage reports
 htmlcov/
