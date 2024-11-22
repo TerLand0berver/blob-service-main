@@ -286,7 +286,10 @@ async def update_root_config(request: Request):
         RESPONSE_ERROR_CODE = config.RESPONSE_ERROR_CODE
         
         # Also update CORS middleware
-        app.user_middleware[0].options["allow_origins"] = CORS_ALLOW_ORIGINS
+        for middleware in app.user_middleware:
+            if isinstance(middleware.cls, CORSMiddleware):
+                middleware.options["allow_origins"] = CORS_ALLOW_ORIGINS
+                break
         
         return format_response(True, "Configuration updated successfully")
         
