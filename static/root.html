@@ -426,92 +426,76 @@
 
         // Save configuration
         async function saveConfig() {
+            const newConfig = {
+                // Auth settings
+                admin_user: document.getElementById('admin_user').value || 'root',
+                admin_password: document.getElementById('admin_password').value || 'root123456',
+                require_auth: document.getElementById('require_auth').checked,
+                whitelist_domains: document.getElementById('whitelist_domains').value.split(',').map(d => d.trim()).filter(Boolean),
+                whitelist_ips: document.getElementById('whitelist_ips').value.split(',').map(d => d.trim()).filter(Boolean),
+                
+                // General settings
+                cors_allow_origins: document.getElementById('cors_allow_origins').value.split(',').map(d => d.trim()).filter(Boolean),
+                max_file_size: parseFloat(document.getElementById('max_file_size').value) || -1,
+                pdf_max_images: parseInt(document.getElementById('pdf_max_images').value) || 10,
+                
+                // Azure Speech settings
+                azure_speech_key: document.getElementById('azure_speech_key').value,
+                azure_speech_region: document.getElementById('azure_speech_region').value,
+                
+                // Storage settings
+                storage_type: document.getElementById('storage_type').value,
+                local_storage_domain: document.getElementById('local_storage_domain').value,
+                
+                // S3 settings
+                s3_bucket: document.getElementById('s3_bucket').value,
+                s3_access_key: document.getElementById('s3_access_key').value,
+                s3_secret_key: document.getElementById('s3_secret_key').value,
+                s3_region: document.getElementById('s3_region').value,
+                s3_domain: document.getElementById('s3_domain').value,
+                s3_direct_url_domain: document.getElementById('s3_direct_url_domain').value,
+                s3_sign_version: document.getElementById('s3_sign_version').value,
+                
+                // Telegram settings
+                tg_endpoint: document.getElementById('tg_endpoint').value,
+                tg_password: document.getElementById('tg_password').value,
+                
+                // File API settings
+                file_api_endpoint: document.getElementById('file_api_endpoint').value,
+                file_api_key: document.getElementById('file_api_key').value,
+                
+                // OCR settings
+                ocr_endpoint: document.getElementById('ocr_endpoint').value,
+                ocr_skip_models: document.getElementById('ocr_skip_models').value.split(',').map(d => d.trim()).filter(Boolean),
+                ocr_spec_models: document.getElementById('ocr_spec_models').value.split(',').map(d => d.trim()).filter(Boolean),
+
+                // Response Format settings
+                response_code_field: document.getElementById('response_code_field').value || 'code',
+                response_msg_field: document.getElementById('response_msg_field').value || 'msg',
+                response_sn_field: document.getElementById('response_sn_field').value || 'sn',
+                response_data_field: document.getElementById('response_data_field').value || 'data',
+                response_url_field: document.getElementById('response_url_field').value || 'url',
+                response_filename_field: document.getElementById('response_filename_field').value || 'filename',
+                response_image_field: document.getElementById('response_image_field').value || 'image',
+                response_success_code: document.getElementById('response_success_code').value || '0',
+                response_error_code: document.getElementById('response_error_code').value || '1'
+            };
+
             try {
-                if (!authCredentials) {
-                    if (await authenticate()) {
-                        await saveConfig();
-                    }
-                    return;
-                }
-
-                const newConfig = {
-                    // Auth settings
-                    admin_user: document.getElementById('admin_user').value,
-                    admin_password: document.getElementById('admin_password').value,
-                    require_auth: document.getElementById('require_auth').checked,
-                    whitelist_domains: document.getElementById('whitelist_domains').value.split(',').map(d => d.trim()).filter(Boolean),
-                    whitelist_ips: document.getElementById('whitelist_ips').value.split(',').map(ip => ip.trim()).filter(Boolean),
-                    
-                    // General settings
-                    cors_allow_origins: document.getElementById('cors_allow_origins').value.split(',').map(d => d.trim()).filter(Boolean),
-                    max_file_size: parseFloat(document.getElementById('max_file_size').value) || -1,
-                    pdf_max_images: parseInt(document.getElementById('pdf_max_images').value) || 10,
-                    
-                    // Azure Speech settings
-                    azure_speech_key: document.getElementById('azure_speech_key').value,
-                    azure_speech_region: document.getElementById('azure_speech_region').value,
-                    
-                    // Storage settings
-                    storage_type: document.getElementById('storage_type').value,
-                    local_storage_domain: document.getElementById('local_storage_domain').value,
-                    
-                    // S3 settings
-                    s3_bucket: document.getElementById('s3_bucket').value,
-                    s3_access_key: document.getElementById('s3_access_key').value,
-                    s3_secret_key: document.getElementById('s3_secret_key').value,
-                    s3_region: document.getElementById('s3_region').value,
-                    s3_domain: document.getElementById('s3_domain').value,
-                    s3_direct_url_domain: document.getElementById('s3_direct_url_domain').value,
-                    s3_sign_version: document.getElementById('s3_sign_version').value,
-                    
-                    // Telegram settings
-                    tg_endpoint: document.getElementById('tg_endpoint').value,
-                    tg_password: document.getElementById('tg_password').value,
-                    
-                    // File API settings
-                    file_api_endpoint: document.getElementById('file_api_endpoint').value,
-                    file_api_key: document.getElementById('file_api_key').value,
-                    
-                    // OCR settings
-                    ocr_endpoint: document.getElementById('ocr_endpoint').value,
-                    ocr_skip_models: document.getElementById('ocr_skip_models').value.split(',').map(d => d.trim()).filter(Boolean),
-                    ocr_spec_models: document.getElementById('ocr_spec_models').value.split(',').map(d => d.trim()).filter(Boolean),
-                    
-                    // Response format settings
-                    response_code_field: document.getElementById('response_code_field').value || 'code',
-                    response_msg_field: document.getElementById('response_msg_field').value || 'msg',
-                    response_sn_field: document.getElementById('response_sn_field').value || 'sn',
-                    response_data_field: document.getElementById('response_data_field').value || 'data',
-                    response_url_field: document.getElementById('response_url_field').value || 'url',
-                    response_filename_field: document.getElementById('response_filename_field').value || 'filename',
-                    response_image_field: document.getElementById('response_image_field').value || 'image',
-                    response_success_code: document.getElementById('response_success_code').value || '0',
-                    response_error_code: document.getElementById('response_error_code').value || '1',
-                };
-
                 const response = await fetch('/root/config', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Basic ${authCredentials}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(newConfig)
                 });
 
-                if (response.status === 401) {
-                    authCredentials = null;
-                    if (await authenticate()) {
-                        await saveConfig();
-                    }
-                    return;
-                }
-
-                if (response.ok) {
-                    showMessage('Configuration saved successfully!');
-                    config = newConfig;
-                    checkAccess();
+                const result = await response.json();
+                if (result.code === 0) {
+                    showMessage('Configuration saved successfully', false);
+                    loadConfig();
                 } else {
-                    showMessage('Failed to save configuration. Please try again.', true);
+                    showMessage(result.msg || 'Failed to save configuration', true);
                 }
             } catch (error) {
                 console.error('Failed to save config:', error);
