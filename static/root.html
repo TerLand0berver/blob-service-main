@@ -149,12 +149,100 @@
             </div>
         </div>
 
+        <div class="section">
+            <h2>General Settings</h2>
+            <div class="form-group">
+                <label for="cors_allow_origins">CORS Allow Origins (comma-separated)</label>
+                <input type="text" id="cors_allow_origins" placeholder="*">
+            </div>
+            <div class="form-group">
+                <label for="max_file_size">Max File Size (MB)</label>
+                <input type="number" id="max_file_size" placeholder="-1">
+            </div>
+            <div class="form-group">
+                <label for="pdf_max_images">PDF Max Images</label>
+                <input type="number" id="pdf_max_images" placeholder="10">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Azure Speech Settings</h2>
+            <div class="form-group">
+                <label for="azure_speech_key">Azure Speech Key</label>
+                <input type="text" id="azure_speech_key" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="azure_speech_region">Azure Speech Region</label>
+                <input type="text" id="azure_speech_region" placeholder="">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Storage Settings</h2>
+            <div class="form-group">
+                <label for="storage_type">Storage Type</label>
+                <select id="storage_type">
+                    <option value="common">Common</option>
+                    <option value="s3">S3</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="local_storage_domain">Local Storage Domain</label>
+                <input type="text" id="local_storage_domain" placeholder="">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>S3 Settings</h2>
+            <div class="form-group">
+                <label for="s3_bucket">S3 Bucket</label>
+                <input type="text" id="s3_bucket" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_access_key">S3 Access Key</label>
+                <input type="text" id="s3_access_key" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_secret_key">S3 Secret Key</label>
+                <input type="text" id="s3_secret_key" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_region">S3 Region</label>
+                <input type="text" id="s3_region" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_domain">S3 Domain</label>
+                <input type="text" id="s3_domain" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_direct_url_domain">S3 Direct URL Domain</label>
+                <input type="text" id="s3_direct_url_domain" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="s3_sign_version">S3 Sign Version</label>
+                <input type="text" id="s3_sign_version" placeholder="">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Telegram Settings</h2>
+            <div class="form-group">
+                <label for="tg_endpoint">Telegram Endpoint</label>
+                <input type="text" id="tg_endpoint" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="tg_password">Telegram Password</label>
+                <input type="text" id="tg_password" placeholder="">
+            </div>
+        </div>
+
         <button onclick="saveConfig()">Save Configuration</button>
         <div id="message"></div>
     </div>
 
     <script>
         let config = {};
+        let authCredentials = null;
 
         // Check access status
         async function checkAccess() {
@@ -165,8 +253,6 @@
                 if (response.ok) {
                     status.className = 'status allowed';
                     status.textContent = '✓ Your domain/IP is whitelisted. You can access the main service.';
-                    // 如果已经在白名单中,跳转到主页
-                    window.location.href = '/';
                 } else if (response.status === 403) {
                     status.className = 'status blocked';
                     status.textContent = '✗ Your domain/IP is not whitelisted. Please configure access settings below.';
@@ -185,51 +271,125 @@
         // Load current configuration
         async function loadConfig() {
             try {
-                const response = await fetch('/root/config', {
-                    headers: {
-                        'Authorization': `Basic ${localStorage.getItem('authToken')}`
-                    }
-                });
-                if (response.status === 401) {
+                if (!authCredentials) {
                     if (await authenticate()) {
                         await loadConfig();
                     }
                     return;
                 }
+
+                const response = await fetch('/root/config', {
+                    headers: {
+                        'Authorization': `Basic ${authCredentials}`
+                    }
+                });
+                
+                if (response.status === 401) {
+                    authCredentials = null;
+                    if (await authenticate()) {
+                        await loadConfig();
+                    }
+                    return;
+                }
+                
                 if (response.ok) {
                     config = await response.json();
+                    
+                    // Auth settings
                     document.getElementById('admin_user').value = config.admin_user || '';
                     document.getElementById('admin_password').value = config.admin_password || '';
-                    document.getElementById('require_auth').checked = config.require_auth;
+                    document.getElementById('require_auth').checked = config.require_auth !== false;
                     document.getElementById('whitelist_domains').value = (config.whitelist_domains || []).join(',');
                     document.getElementById('whitelist_ips').value = (config.whitelist_ips || []).join(',');
+                    
+                    // General settings
+                    document.getElementById('cors_allow_origins').value = (config.cors_allow_origins || []).join(',');
+                    document.getElementById('max_file_size').value = config.max_file_size || -1;
+                    document.getElementById('pdf_max_images').value = config.pdf_max_images || 10;
+                    
+                    // Azure Speech settings
+                    document.getElementById('azure_speech_key').value = config.azure_speech_key || '';
+                    document.getElementById('azure_speech_region').value = config.azure_speech_region || '';
+                    
+                    // Storage settings
+                    document.getElementById('storage_type').value = config.storage_type || 'common';
+                    document.getElementById('local_storage_domain').value = config.local_storage_domain || '';
+                    
+                    // S3 settings
+                    document.getElementById('s3_bucket').value = config.s3_bucket || '';
+                    document.getElementById('s3_access_key').value = config.s3_access_key || '';
+                    document.getElementById('s3_secret_key').value = config.s3_secret_key || '';
+                    document.getElementById('s3_region').value = config.s3_region || '';
+                    document.getElementById('s3_domain').value = config.s3_domain || '';
+                    document.getElementById('s3_direct_url_domain').value = config.s3_direct_url_domain || '';
+                    document.getElementById('s3_sign_version').value = config.s3_sign_version || '';
+                    
+                    // Telegram settings
+                    document.getElementById('tg_endpoint').value = config.tg_endpoint || '';
+                    document.getElementById('tg_password').value = config.tg_password || '';
                 }
             } catch (error) {
-                showMessage('Failed to load configuration: ' + error.message, true);
+                console.error('Failed to load config:', error);
+                showMessage('Failed to load configuration. Please try again.', true);
             }
         }
 
         // Save configuration
         async function saveConfig() {
-            const newConfig = {
-                admin_user: document.getElementById('admin_user').value || 'root',
-                admin_password: document.getElementById('admin_password').value || 'root123456',
-                require_auth: document.getElementById('require_auth').checked,
-                whitelist_domains: document.getElementById('whitelist_domains').value.split(',').filter(x => x),
-                whitelist_ips: document.getElementById('whitelist_ips').value.split(',').filter(x => x)
-            };
-
             try {
+                if (!authCredentials) {
+                    if (await authenticate()) {
+                        await saveConfig();
+                    }
+                    return;
+                }
+
+                const newConfig = {
+                    // Auth settings
+                    admin_user: document.getElementById('admin_user').value,
+                    admin_password: document.getElementById('admin_password').value,
+                    require_auth: document.getElementById('require_auth').checked,
+                    whitelist_domains: document.getElementById('whitelist_domains').value.split(',').map(d => d.trim()).filter(Boolean),
+                    whitelist_ips: document.getElementById('whitelist_ips').value.split(',').map(ip => ip.trim()).filter(Boolean),
+                    
+                    // General settings
+                    cors_allow_origins: document.getElementById('cors_allow_origins').value.split(',').map(d => d.trim()).filter(Boolean),
+                    max_file_size: parseFloat(document.getElementById('max_file_size').value) || -1,
+                    pdf_max_images: parseInt(document.getElementById('pdf_max_images').value) || 10,
+                    
+                    // Azure Speech settings
+                    azure_speech_key: document.getElementById('azure_speech_key').value,
+                    azure_speech_region: document.getElementById('azure_speech_region').value,
+                    
+                    // Storage settings
+                    storage_type: document.getElementById('storage_type').value,
+                    local_storage_domain: document.getElementById('local_storage_domain').value,
+                    
+                    // S3 settings
+                    s3_bucket: document.getElementById('s3_bucket').value,
+                    s3_access_key: document.getElementById('s3_access_key').value,
+                    s3_secret_key: document.getElementById('s3_secret_key').value,
+                    s3_region: document.getElementById('s3_region').value,
+                    s3_domain: document.getElementById('s3_domain').value,
+                    s3_direct_url_domain: document.getElementById('s3_direct_url_domain').value,
+                    s3_sign_version: document.getElementById('s3_sign_version').value,
+                    
+                    // Telegram settings
+                    tg_endpoint: document.getElementById('tg_endpoint').value,
+                    tg_password: document.getElementById('tg_password').value
+                };
+
                 const response = await fetch('/root/config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Basic ${localStorage.getItem('authToken')}`
+                        'Authorization': `Basic ${authCredentials}`
                     },
                     body: JSON.stringify(newConfig)
                 });
 
                 if (response.status === 401) {
+                    authCredentials = null;
                     if (await authenticate()) {
                         await saveConfig();
                     }
@@ -239,45 +399,46 @@
                 if (response.ok) {
                     showMessage('Configuration saved successfully!');
                     config = newConfig;
-                    // Recheck access status after saving
-                    await checkAccess();
+                    checkAccess();
                 } else {
-                    const error = await response.text();
-                    showMessage('Failed to save configuration: ' + error, true);
+                    showMessage('Failed to save configuration. Please try again.', true);
                 }
             } catch (error) {
-                showMessage('Failed to save configuration: ' + error.message, true);
+                console.error('Failed to save config:', error);
+                showMessage('Failed to save configuration. Please try again.', true);
             }
         }
 
         // Handle authentication
         async function authenticate() {
-            const username = prompt('Please enter username:');
-            const password = prompt('Please enter password:');
-            
-            if (!username || !password) return false;
-            
-            const token = btoa(`${username}:${password}`);
+            const username = prompt('Please enter admin username:');
+            if (!username) return false;
+
+            const password = prompt('Please enter admin password:');
+            if (!password) return false;
+
             try {
+                const credentials = btoa(`${username}:${password}`);
                 const response = await fetch('/root/config', {
                     headers: {
-                        'Authorization': `Basic ${token}`
+                        'Authorization': `Basic ${credentials}`
                     }
                 });
-                
+
                 if (response.ok) {
-                    localStorage.setItem('authToken', token);
+                    authCredentials = credentials;
                     return true;
+                } else {
+                    alert('Invalid credentials. Please try again.');
+                    return false;
                 }
             } catch (error) {
                 console.error('Authentication failed:', error);
+                alert('Authentication failed. Please try again.');
+                return false;
             }
-            
-            alert('Authentication failed. Please try again.');
-            return false;
         }
 
-        // Show message
         function showMessage(message, isError = false) {
             const messageEl = document.getElementById('message');
             messageEl.textContent = message;
