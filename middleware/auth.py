@@ -20,17 +20,15 @@ def get_client_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else ""
 
-def is_static_path(path: str) -> bool:
-    """Check if path is a static resource."""
-    static_paths = {
-        "/static/",
+def is_browser_resource(path: str) -> bool:
+    """Check if path is a browser resource that should always be accessible."""
+    browser_resources = {
         "/favicon.ico",
         "/robots.txt",
         "/.well-known/",
-        "/",  # Root path
-        "/index.html",
+        "/static/",
     }
-    return any(path.startswith(prefix) for prefix in static_paths) or path == "/"
+    return any(path.startswith(prefix) for prefix in browser_resources)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -39,8 +37,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         client_ip = get_client_ip(request)
         path = request.url.path
         
-        # Skip auth for static resources and root path
-        if is_static_path(path):
+        # Skip auth for browser resources
+        if is_browser_resource(path):
             return await call_next(request)
         
         # Check if request is for config endpoints
@@ -56,11 +54,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 detail="Whitelisted clients cannot modify configuration"
             )
             
-        # If client is whitelisted and not accessing config, allow access
+        # If client is whitelisted, allow access
         if is_whitelisted:
             return await call_next(request)
             
-        # Skip auth for non-api paths when auth is not required
+        # If auth is not required and not accessing config, allow access
         if not REQUIRE_AUTH and not is_config_endpoint:
             return await call_next(request)
             
