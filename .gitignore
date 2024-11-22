@@ -57,8 +57,6 @@ pip-delete-this-directory.txt
 
 # Static Files
 static/*
-!static/*.html
-!static/.gitkeep
 
 # Unit test / coverage reports
 htmlcov/
