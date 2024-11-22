@@ -7,6 +7,10 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 WORKDIR /app
 RUN mkdir -p /data && chown -R appuser:appuser /data
 
+# 复制并设置启动脚本权限（在切换用户之前）
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh && chown appuser:appuser /docker-entrypoint.sh
+
 # 安装依赖
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -24,10 +28,6 @@ ENV CONFIG_FILE=/data/config.json
 USER appuser
 
 EXPOSE 8000
-
-# 使用启动脚本
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
