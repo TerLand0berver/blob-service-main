@@ -145,46 +145,6 @@
             </div>
         </div>
 
-        <div class="section">
-            <h2>Response Format Settings</h2>
-            <div class="form-group">
-                <label for="response_code_field">Response Code Field Name</label>
-                <input type="text" id="response_code_field" placeholder="code">
-            </div>
-            <div class="form-group">
-                <label for="response_msg_field">Response Message Field Name</label>
-                <input type="text" id="response_msg_field" placeholder="msg">
-            </div>
-            <div class="form-group">
-                <label for="response_sn_field">Response Serial Number Field Name</label>
-                <input type="text" id="response_sn_field" placeholder="sn">
-            </div>
-            <div class="form-group">
-                <label for="response_data_field">Response Data Field Name</label>
-                <input type="text" id="response_data_field" placeholder="data">
-            </div>
-            <div class="form-group">
-                <label for="response_url_field">Response URL Field Name</label>
-                <input type="text" id="response_url_field" placeholder="url">
-            </div>
-            <div class="form-group">
-                <label for="response_filename_field">Response Filename Field Name</label>
-                <input type="text" id="response_filename_field" placeholder="filename">
-            </div>
-            <div class="form-group">
-                <label for="response_image_field">Response Image Field Name</label>
-                <input type="text" id="response_image_field" placeholder="image">
-            </div>
-            <div class="form-group">
-                <label for="response_success_code">Success Response Code</label>
-                <input type="text" id="response_success_code" placeholder="0">
-            </div>
-            <div class="form-group">
-                <label for="response_error_code">Error Response Code</label>
-                <input type="text" id="response_error_code" placeholder="1">
-            </div>
-        </div>
-
         <button onclick="saveConfig()">Save Configuration</button>
         <div id="message"></div>
     </div>
@@ -213,17 +173,6 @@
                     config = await configResponse.json();
                     document.getElementById('api_endpoint').value = config.api_endpoint || '';
                     document.getElementById('api_key').value = config.api_key || '';
-                    
-                    // Load response format settings
-                    document.getElementById('response_code_field').value = config.response_code_field || 'code';
-                    document.getElementById('response_msg_field').value = config.response_msg_field || 'msg';
-                    document.getElementById('response_sn_field').value = config.response_sn_field || 'sn';
-                    document.getElementById('response_data_field').value = config.response_data_field || 'data';
-                    document.getElementById('response_url_field').value = config.response_url_field || 'url';
-                    document.getElementById('response_filename_field').value = config.response_filename_field || 'filename';
-                    document.getElementById('response_image_field').value = config.response_image_field || 'image';
-                    document.getElementById('response_success_code').value = config.response_success_code || '0';
-                    document.getElementById('response_error_code').value = config.response_error_code || '1';
                 }
             } catch (error) {
                 showMessage('Failed to load configuration: ' + error.message, true);
@@ -244,18 +193,7 @@
             // Save other config
             const newConfig = {
                 api_endpoint: document.getElementById('api_endpoint').value,
-                api_key: document.getElementById('api_key').value,
-                
-                // Save response format settings
-                response_code_field: document.getElementById('response_code_field').value || 'code',
-                response_msg_field: document.getElementById('response_msg_field').value || 'msg',
-                response_sn_field: document.getElementById('response_sn_field').value || 'sn',
-                response_data_field: document.getElementById('response_data_field').value || 'data',
-                response_url_field: document.getElementById('response_url_field').value || 'url',
-                response_filename_field: document.getElementById('response_filename_field').value || 'filename',
-                response_image_field: document.getElementById('response_image_field').value || 'image',
-                response_success_code: document.getElementById('response_success_code').value || '0',
-                response_error_code: document.getElementById('response_error_code').value || '1'
+                api_key: document.getElementById('api_key').value
             };
 
             try {
