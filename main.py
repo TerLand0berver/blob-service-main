@@ -175,43 +175,62 @@ async def update_root_config(request: Request):
         update_env("OCR_SKIP_MODELS", config.get("ocr_skip_models"), True)
         update_env("OCR_SPEC_MODELS", config.get("ocr_spec_models"), True)
         
-        # Reload config module variables
-        reload_config_vars = [
-            # Auth settings
-            "ADMIN_USER", "ADMIN_PASSWORD", "REQUIRE_AUTH", "WHITELIST_DOMAINS", "WHITELIST_IPS",
-            # General settings
-            "CORS_ALLOW_ORIGINS", "MAX_FILE_SIZE", "PDF_MAX_IMAGES",
-            # Azure Speech settings
-            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION", "ENABLE_AZURE_SPEECH",
-            # Storage settings
-            "STORAGE_TYPE", "LOCAL_STORAGE_DOMAIN",
-            # S3 settings
-            "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION",
-            "S3_DOMAIN", "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
-            "S3_API", "S3_SPACE",
-            # Telegram settings
-            "TG_ENDPOINT", "TG_PASSWORD", "TG_API",
-            # File API settings
-            "FILE_API_ENDPOINT", "FILE_API_KEY",
-            # OCR settings
-            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS"
-        ]
+        # Reload config module to update all variables
+        import importlib
+        import config
+        importlib.reload(config)
         
-        # Update global variables
-        global_dict = globals()
-        for var in reload_config_vars:
-            if var in config:
-                global_dict[var] = config[var]
-            elif var == "ENABLE_AZURE_SPEECH":
-                global_dict[var] = bool(config.get("azure_speech_key") and config.get("azure_speech_region"))
-            elif var == "S3_API":
-                global_dict[var] = config.get("s3_domain") or f"https://{config.get('s3_bucket')}.s3.{config.get('s3_region')}.amazonaws.com"
-            elif var == "S3_SPACE":
-                global_dict[var] = config.get("s3_direct_url_domain") or global_dict["S3_API"]
-            elif var == "TG_API":
-                tg_endpoint = config.get("tg_endpoint", "").rstrip("/")
-                tg_password = config.get("tg_password", "")
-                global_dict[var] = tg_endpoint + "/api" + (f"?pass={tg_password}" if tg_password else "")
+        # Update global variables from reloaded config
+        global ADMIN_USER, ADMIN_PASSWORD, REQUIRE_AUTH, WHITELIST_DOMAINS, WHITELIST_IPS
+        global CORS_ALLOW_ORIGINS, MAX_FILE_SIZE, PDF_MAX_IMAGES
+        global AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, ENABLE_AZURE_SPEECH
+        global STORAGE_TYPE, LOCAL_STORAGE_DOMAIN
+        global S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_DOMAIN
+        global S3_DIRECT_URL_DOMAIN, S3_SIGN_VERSION, S3_API, S3_SPACE
+        global TG_ENDPOINT, TG_PASSWORD, TG_API
+        global FILE_API_ENDPOINT, FILE_API_KEY
+        global OCR_ENDPOINT, OCR_SKIP_MODELS, OCR_SPEC_MODELS
+        
+        ADMIN_USER = config.ADMIN_USER
+        ADMIN_PASSWORD = config.ADMIN_PASSWORD
+        REQUIRE_AUTH = config.REQUIRE_AUTH
+        WHITELIST_DOMAINS = config.WHITELIST_DOMAINS
+        WHITELIST_IPS = config.WHITELIST_IPS
+        
+        CORS_ALLOW_ORIGINS = config.CORS_ALLOW_ORIGINS
+        MAX_FILE_SIZE = config.MAX_FILE_SIZE
+        PDF_MAX_IMAGES = config.PDF_MAX_IMAGES
+        
+        AZURE_SPEECH_KEY = config.AZURE_SPEECH_KEY
+        AZURE_SPEECH_REGION = config.AZURE_SPEECH_REGION
+        ENABLE_AZURE_SPEECH = config.ENABLE_AZURE_SPEECH
+        
+        STORAGE_TYPE = config.STORAGE_TYPE
+        LOCAL_STORAGE_DOMAIN = config.LOCAL_STORAGE_DOMAIN
+        
+        S3_BUCKET = config.S3_BUCKET
+        S3_ACCESS_KEY = config.S3_ACCESS_KEY
+        S3_SECRET_KEY = config.S3_SECRET_KEY
+        S3_REGION = config.S3_REGION
+        S3_DOMAIN = config.S3_DOMAIN
+        S3_DIRECT_URL_DOMAIN = config.S3_DIRECT_URL_DOMAIN
+        S3_SIGN_VERSION = config.S3_SIGN_VERSION
+        S3_API = config.S3_API
+        S3_SPACE = config.S3_SPACE
+        
+        TG_ENDPOINT = config.TG_ENDPOINT
+        TG_PASSWORD = config.TG_PASSWORD
+        TG_API = config.TG_API
+        
+        FILE_API_ENDPOINT = config.FILE_API_ENDPOINT
+        FILE_API_KEY = config.FILE_API_KEY
+        
+        OCR_ENDPOINT = config.OCR_ENDPOINT
+        OCR_SKIP_MODELS = config.OCR_SKIP_MODELS
+        OCR_SPEC_MODELS = config.OCR_SPEC_MODELS
+        
+        # Also update CORS middleware
+        app.user_middleware[0].options["allow_origins"] = CORS_ALLOW_ORIGINS
         
         return {"status": "success", "message": "Configuration updated successfully"}
         
