@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  blob-service:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - blob-data:/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      # 添加其他环境变量配置
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - REQUIRE_AUTH=${REQUIRE_AUTH:-true}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-10485760}
+      - STORAGE_TYPE=${STORAGE_TYPE:-local}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  blob-data:
+    driver: local

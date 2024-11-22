@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from handlers.processor import process_file, read_file_size
+from handlers.response import ResponseFormatter
 from config import *
 from handlers.ocr import create_ocr_task, deprecated_could_enable_ocr
 from middleware.auth import AuthMiddleware
@@ -39,11 +40,14 @@ async def config_page():
 
 @app.get("/api/config")
 async def get_config():
-    return {
-        "storage_type": STORAGE_TYPE,
-        "api_endpoint": FILE_API_ENDPOINT,
-        "api_key": FILE_API_KEY
-    }
+    return ResponseFormatter.success(
+        message="Configuration retrieved successfully",
+        data={
+            "storage_type": STORAGE_TYPE,
+            "api_endpoint": FILE_API_ENDPOINT,
+            "api_key": FILE_API_KEY
+        }
+    )
 
 
 @app.post("/api/config")
@@ -56,9 +60,12 @@ async def update_config(request: Request):
         os.environ["FILE_API_ENDPOINT"] = config["api_endpoint"]
         os.environ["FILE_API_KEY"] = config["api_key"]
         
-        return format_response(True, "success")
+        return ResponseFormatter.success(message="Configuration updated successfully")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return ResponseFormatter.error(
+            message=f"Failed to update configuration: {str(e)}",
+            status_code=400
+        )
 
 
 @app.get("/root")
@@ -70,64 +77,67 @@ async def root_page():
 @app.get("/root/config")
 async def get_root_config():
     """Get all configuration parameters"""
-    return format_response(True, "success", {
-        # Auth settings
-        "admin_user": ADMIN_USER,
-        "admin_password": ADMIN_PASSWORD,
-        "require_auth": REQUIRE_AUTH,
-        "whitelist_domains": WHITELIST_DOMAINS,
-        "whitelist_ips": WHITELIST_IPS,
-        
-        # General settings
-        "cors_allow_origins": CORS_ALLOW_ORIGINS,
-        "max_file_size": MAX_FILE_SIZE,
-        "pdf_max_images": PDF_MAX_IMAGES,
-        
-        # Azure Speech settings
-        "azure_speech_key": AZURE_SPEECH_KEY,
-        "azure_speech_region": AZURE_SPEECH_REGION,
-        "enable_azure_speech": ENABLE_AZURE_SPEECH,
-        
-        # Storage settings
-        "storage_type": STORAGE_TYPE,
-        "local_storage_domain": LOCAL_STORAGE_DOMAIN,
-        
-        # S3 settings
-        "s3_bucket": S3_BUCKET,
-        "s3_access_key": S3_ACCESS_KEY,
-        "s3_secret_key": S3_SECRET_KEY,
-        "s3_region": S3_REGION,
-        "s3_domain": S3_DOMAIN,
-        "s3_direct_url_domain": S3_DIRECT_URL_DOMAIN,
-        "s3_sign_version": S3_SIGN_VERSION,
-        "s3_api": S3_API,
-        "s3_space": S3_SPACE,
-        
-        # Telegram settings
-        "tg_endpoint": TG_ENDPOINT,
-        "tg_password": TG_PASSWORD,
-        "tg_api": TG_API,
-        
-        # File API settings
-        "file_api_endpoint": FILE_API_ENDPOINT,
-        "file_api_key": FILE_API_KEY,
-        
-        # OCR settings
-        "ocr_endpoint": OCR_ENDPOINT,
-        "ocr_skip_models": OCR_SKIP_MODELS,
-        "ocr_spec_models": OCR_SPEC_MODELS,
+    return ResponseFormatter.success(
+        message="Configuration retrieved successfully",
+        data={
+            # Auth settings
+            "admin_user": ADMIN_USER,
+            "admin_password": ADMIN_PASSWORD,
+            "require_auth": REQUIRE_AUTH,
+            "whitelist_domains": WHITELIST_DOMAINS,
+            "whitelist_ips": WHITELIST_IPS,
+            
+            # General settings
+            "cors_allow_origins": CORS_ALLOW_ORIGINS,
+            "max_file_size": MAX_FILE_SIZE,
+            "pdf_max_images": PDF_MAX_IMAGES,
+            
+            # Azure Speech settings
+            "azure_speech_key": AZURE_SPEECH_KEY,
+            "azure_speech_region": AZURE_SPEECH_REGION,
+            "enable_azure_speech": ENABLE_AZURE_SPEECH,
+            
+            # Storage settings
+            "storage_type": STORAGE_TYPE,
+            "local_storage_domain": LOCAL_STORAGE_DOMAIN,
+            
+            # S3 settings
+            "s3_bucket": S3_BUCKET,
+            "s3_access_key": S3_ACCESS_KEY,
+            "s3_secret_key": S3_SECRET_KEY,
+            "s3_region": S3_REGION,
+            "s3_domain": S3_DOMAIN,
+            "s3_direct_url_domain": S3_DIRECT_URL_DOMAIN,
+            "s3_sign_version": S3_SIGN_VERSION,
+            "s3_api": S3_API,
+            "s3_space": S3_SPACE,
+            
+            # Telegram settings
+            "tg_endpoint": TG_ENDPOINT,
+            "tg_password": TG_PASSWORD,
+            "tg_api": TG_API,
+            
+            # File API settings
+            "file_api_endpoint": FILE_API_ENDPOINT,
+            "file_api_key": FILE_API_KEY,
+            
+            # OCR settings
+            "ocr_endpoint": OCR_ENDPOINT,
+            "ocr_skip_models": OCR_SKIP_MODELS,
+            "ocr_spec_models": OCR_SPEC_MODELS,
 
-        # Response Format settings
-        "response_code_field": RESPONSE_CODE_FIELD,
-        "response_msg_field": RESPONSE_MSG_FIELD,
-        "response_sn_field": RESPONSE_SN_FIELD,
-        "response_data_field": RESPONSE_DATA_FIELD,
-        "response_url_field": RESPONSE_URL_FIELD,
-        "response_filename_field": RESPONSE_FILENAME_FIELD,
-        "response_image_field": RESPONSE_IMAGE_FIELD,
-        "response_success_code": RESPONSE_SUCCESS_CODE,
-        "response_error_code": RESPONSE_ERROR_CODE,
-    })
+            # Response Format settings
+            "response_code_field": RESPONSE_CODE_FIELD,
+            "response_msg_field": RESPONSE_MSG_FIELD,
+            "response_sn_field": RESPONSE_SN_FIELD,
+            "response_data_field": RESPONSE_DATA_FIELD,
+            "response_url_field": RESPONSE_URL_FIELD,
+            "response_filename_field": RESPONSE_FILENAME_FIELD,
+            "response_image_field": RESPONSE_IMAGE_FIELD,
+            "response_success_code": RESPONSE_SUCCESS_CODE,
+            "response_error_code": RESPONSE_ERROR_CODE,
+        }
+    )
 
 
 @app.post("/root/config")
@@ -294,12 +304,15 @@ async def update_root_config(request: Request):
         # Save configuration to file
         config.save_config_file()
         
-        return format_response(True, "Configuration updated successfully")
+        return ResponseFormatter.success(message="Configuration updated successfully")
         
     except Exception as e:
         error_msg = str(e)
         print(f"Error updating configuration: {error_msg}")
-        return format_response(False, error_msg)
+        return ResponseFormatter.error(
+            message=error_msg,
+            status_code=500
+        )
 
 
 @app.get("/favicon.ico")
@@ -318,11 +331,15 @@ async def upload(
     """Accepts file and returns its contents."""
     try:
         if not file or not file.filename:
-            return format_response(False, "No file provided", {
-                "url": "",
-                "filename": "",
-                "image": False
-            })
+            return ResponseFormatter.error(
+                message="No file provided",
+                status_code=400,
+                data={
+                    "url": "",
+                    "filename": "",
+                    "image": False
+                }
+            )
 
         if model and len(model) > 0:
             # compatibility with deprecated model parameter
@@ -336,11 +353,15 @@ async def upload(
         if MAX_FILE_SIZE > 0:
             file_size = await read_file_size(file)
             if file_size > MAX_FILE_SIZE:
-                return format_response(False, f"File size {file_size:.2f} MiB exceeds the limit of {MAX_FILE_SIZE} MiB", {
-                    "url": "",
-                    "filename": file.filename,
-                    "image": False
-                })
+                return ResponseFormatter.error(
+                    message=f"File size {file_size:.2f} MiB exceeds the limit of {MAX_FILE_SIZE} MiB",
+                    status_code=400,
+                    data={
+                        "url": "",
+                        "filename": file.filename,
+                        "image": False
+                    }
+                )
 
         filetype, contents = await process_file(
             file,
@@ -354,31 +375,33 @@ async def upload(
 
         # 检查返回的URL是否有效
         if not contents or len(contents.strip()) == 0:
-            return format_response(False, "Failed to process file: empty URL returned", {
-                "url": "",
+            return ResponseFormatter.error(
+                message="Failed to process file: empty URL returned",
+                status_code=500,
+                data={
+                    "url": "",
+                    "filename": file.filename,
+                    "image": is_image
+                }
+            )
+
+        return ResponseFormatter.success(
+            message="File processed successfully",
+            data={
+                "url": contents.strip(),
                 "filename": file.filename,
                 "image": is_image
-            })
-
-        return format_response(True, "success", {
-            "url": contents.strip(),
-            "filename": file.filename,
-            "image": is_image
-        })
+            }
+        )
     except Exception as e:
         error_msg = str(e)
         print(f"Error processing file {file.filename if file else 'unknown'}: {error_msg}")
-        return format_response(False, error_msg, {
-            "url": "",
-            "filename": file.filename if file else "",
-            "image": False
-        })
-
-
-def format_response(success: bool, msg: str, data: dict = None):
-    return {
-        RESPONSE_CODE_FIELD: RESPONSE_SUCCESS_CODE if success else RESPONSE_ERROR_CODE,
-        RESPONSE_MSG_FIELD: msg,
-        RESPONSE_SN_FIELD: secrets.token_hex(8),
-        RESPONSE_DATA_FIELD: data if data else {}
-    }
+        return ResponseFormatter.error(
+            message=error_msg,
+            status_code=500,
+            data={
+                "url": "",
+                "filename": file.filename if file else "",
+                "image": False
+            }
+        )

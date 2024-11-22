@@ -4,7 +4,9 @@ from typing import List
 import json
 import os
 
-CONFIG_FILE = "config.json"
+# 使用容器中的持久化目录
+CONFIG_DIR = "/data"
+CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 def to_str(key: str, default: str = "") -> str:
     """Converts string to string."""
@@ -147,22 +149,28 @@ def format_upload_data(url: str = "", filename: str = "", is_image: bool = False
 
 def load_config_file():
     """Load configuration from file."""
+    # 确保配置目录存在
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, 'r') as f:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
                 for key, value in config.items():
                     if isinstance(value, list):
                         environ[key] = ",".join(str(x) for x in value)
                     elif isinstance(value, bool):
                         environ[key] = str(value).lower()
-                    else:
+                    elif value is not None:  # 只设置非None的值
                         environ[key] = str(value)
         except Exception as e:
             print(f"Error loading config file: {e}")
 
 def save_config_file():
     """Save configuration to file."""
+    # 确保配置目录存在
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    
     config = {
         # Auth Config
         "ADMIN_USER": ADMIN_USER,
@@ -215,8 +223,11 @@ def save_config_file():
     }
     
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=4)
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+            # 确保写入到磁盘
+            f.flush()
+            os.fsync(f.fileno())
     except Exception as e:
         print(f"Error saving config file: {e}")
 
