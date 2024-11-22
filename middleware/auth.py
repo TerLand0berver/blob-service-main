@@ -30,13 +30,33 @@ def is_browser_resource(path: str) -> bool:
     }
     return any(path.startswith(prefix) for prefix in browser_resources)
 
+def is_root_endpoint(path: str) -> bool:
+    """Check if path is a root endpoint."""
+    return path.startswith("/root")
+
 def is_api_endpoint(path: str) -> bool:
     """Check if path is an API endpoint."""
-    return path.startswith("/api/")
+    return path.startswith("/api/") or path == "/"
 
-def is_config_endpoint(path: str) -> bool:
-    """Check if path is a config endpoint."""
-    return path.startswith("/api/config") or path == "/config"
+def check_auth(request: Request) -> bool:
+    """Check if request has valid authentication."""
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return False
+        
+    try:
+        scheme, credentials = auth.split()
+        if scheme.lower() != "basic":
+            return False
+            
+        decoded = base64.b64decode(credentials).decode("utf-8")
+        username, password = decoded.split(":")
+        
+        return secrets.compare_digest(username, ADMIN_USER) and \
+               secrets.compare_digest(password, ADMIN_PASSWORD)
+                
+    except Exception:
+        return False
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -52,39 +72,35 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Check if client is whitelisted
         is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
         
-        # API endpoints only accessible by whitelisted clients
-        if is_api_endpoint(path):
-            if not is_whitelisted:
-                raise HTTPException(
-                    status_code=403,
-                    detail="API endpoints are only accessible by whitelisted clients"
-                )
-            return await call_next(request)
-            
-        # Config endpoints always require authentication
-        if is_config_endpoint(path):
-            auth = request.headers.get("Authorization")
-            if not auth:
+        # Root endpoints require authentication but are always accessible
+        if is_root_endpoint(path):
+            # Root page is always accessible
+            if path == "/root":
+                return await call_next(request)
+                
+            # Root config endpoints require authentication
+            if not check_auth(request):
                 raise HTTPException(
                     status_code=401,
                     detail="Unauthorized",
                     headers={"WWW-Authenticate": "Basic"},
                 )
-                
-            try:
-                scheme, credentials = auth.split()
-                if scheme.lower() != "basic":
-                    raise HTTPException(status_code=401, detail="Invalid authentication scheme")
-                    
-                decoded = base64.b64decode(credentials).decode("utf-8")
-                username, password = decoded.split(":")
-                
-                if not secrets.compare_digest(username, ADMIN_USER) or \
-                   not secrets.compare_digest(password, ADMIN_PASSWORD):
-                    raise HTTPException(status_code=401, detail="Invalid credentials")
-                    
-            except Exception as e:
-                raise HTTPException(status_code=401, detail="Invalid credentials")
+            return await call_next(request)
+            
+        # API endpoints and main page only accessible by whitelisted clients
+        if is_api_endpoint(path):
+            if not is_whitelisted:
+                raise HTTPException(
+                    status_code=403,
+                    detail="This endpoint is only accessible by whitelisted clients"
+                )
+            return await call_next(request)
         
-        # All other paths are accessible
+        # All other paths require whitelisting
+        if not is_whitelisted:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied. Please configure access through /root"
+            )
+            
         return await call_next(request)

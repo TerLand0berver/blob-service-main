@@ -60,7 +60,13 @@ async def update_config(request: Request):
 
 
 @app.get("/root")
-async def root_config():
+async def root_page():
+    """Root page for authentication and configuration"""
+    return FileResponse("static/root.html")
+
+
+@app.get("/root/config")
+async def get_root_config():
     """Get authentication configuration"""
     return {
         "admin_user": ADMIN_USER,
@@ -71,7 +77,7 @@ async def root_config():
     }
 
 
-@app.post("/root")
+@app.post("/root/config")
 async def update_root_config(request: Request):
     """Update authentication configuration"""
     try:
