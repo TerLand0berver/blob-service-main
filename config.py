@@ -108,3 +108,35 @@ FILE_API_KEY = to_str("FILE_API_KEY", "")  # File API Key
 OCR_ENDPOINT = to_endpoint("OCR_ENDPOINT", "")  # OCR Endpoint
 OCR_SKIP_MODELS = to_list("OCR_SKIP_MODELS", [])  # OCR Skip Models
 OCR_SPEC_MODELS = to_list("OCR_SPEC_MODELS", [])  # OCR Specific Models
+
+# Response Format Config
+RESPONSE_CODE_FIELD = to_str("RESPONSE_CODE_FIELD", "code")  # Response code field name
+RESPONSE_MSG_FIELD = to_str("RESPONSE_MSG_FIELD", "msg")    # Response message field name
+RESPONSE_SN_FIELD = to_str("RESPONSE_SN_FIELD", "sn")      # Response serial number field name
+RESPONSE_DATA_FIELD = to_str("RESPONSE_DATA_FIELD", "data") # Response data field name
+
+# Response Data Format Config
+RESPONSE_URL_FIELD = to_str("RESPONSE_URL_FIELD", "url")        # URL field in data
+RESPONSE_FILENAME_FIELD = to_str("RESPONSE_FILENAME_FIELD", "filename")  # Filename field in data
+RESPONSE_IMAGE_FIELD = to_str("RESPONSE_IMAGE_FIELD", "image")  # Image flag field in data
+
+# Response Code Config
+RESPONSE_SUCCESS_CODE = to_int("RESPONSE_SUCCESS_CODE", 0)  # Success response code
+RESPONSE_ERROR_CODE = to_int("RESPONSE_ERROR_CODE", 1)    # Error response code
+
+def format_response(success: bool, message: str, data: dict = None) -> dict:
+    """Format response according to configuration"""
+    return {
+        RESPONSE_CODE_FIELD: RESPONSE_SUCCESS_CODE if success else RESPONSE_ERROR_CODE,
+        RESPONSE_MSG_FIELD: message,
+        RESPONSE_SN_FIELD: secrets.token_hex(8),
+        RESPONSE_DATA_FIELD: data or {}
+    }
+
+def format_upload_data(url: str = "", filename: str = "", is_image: bool = False) -> dict:
+    """Format upload response data according to configuration"""
+    return {
+        RESPONSE_URL_FIELD: url,
+        RESPONSE_FILENAME_FIELD: filename,
+        RESPONSE_IMAGE_FIELD: is_image
+    }

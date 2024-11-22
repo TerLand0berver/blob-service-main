@@ -55,7 +55,7 @@ async def update_config(request: Request):
         os.environ["FILE_API_ENDPOINT"] = config["api_endpoint"]
         os.environ["FILE_API_KEY"] = config["api_key"]
         
-        return {"status": "success"}
+        return format_response(True, "success")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -69,7 +69,7 @@ async def root_page():
 @app.get("/root/config")
 async def get_root_config():
     """Get all configuration parameters"""
-    return {
+    return format_response(True, "success", {
         # Auth settings
         "admin_user": ADMIN_USER,
         "admin_password": ADMIN_PASSWORD,
@@ -115,7 +115,18 @@ async def get_root_config():
         "ocr_endpoint": OCR_ENDPOINT,
         "ocr_skip_models": OCR_SKIP_MODELS,
         "ocr_spec_models": OCR_SPEC_MODELS,
-    }
+
+        # Response Format settings
+        "response_code_field": RESPONSE_CODE_FIELD,
+        "response_msg_field": RESPONSE_MSG_FIELD,
+        "response_sn_field": RESPONSE_SN_FIELD,
+        "response_data_field": RESPONSE_DATA_FIELD,
+        "response_url_field": RESPONSE_URL_FIELD,
+        "response_filename_field": RESPONSE_FILENAME_FIELD,
+        "response_image_field": RESPONSE_IMAGE_FIELD,
+        "response_success_code": RESPONSE_SUCCESS_CODE,
+        "response_error_code": RESPONSE_ERROR_CODE,
+    })
 
 
 @app.post("/root/config")
@@ -144,7 +155,10 @@ async def update_root_config(request: Request):
             "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
             "TG_ENDPOINT", "TG_PASSWORD",
             "FILE_API_ENDPOINT", "FILE_API_KEY",
-            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS"
+            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS",
+            "RESPONSE_CODE_FIELD", "RESPONSE_MSG_FIELD", "RESPONSE_SN_FIELD", "RESPONSE_DATA_FIELD",
+            "RESPONSE_URL_FIELD", "RESPONSE_FILENAME_FIELD", "RESPONSE_IMAGE_FIELD",
+            "RESPONSE_SUCCESS_CODE", "RESPONSE_ERROR_CODE"
         ]
         for var in env_vars:
             if var in os.environ:
@@ -191,6 +205,17 @@ async def update_root_config(request: Request):
         update_env("OCR_ENDPOINT", config.get("ocr_endpoint"))
         update_env("OCR_SKIP_MODELS", config.get("ocr_skip_models"), True)
         update_env("OCR_SPEC_MODELS", config.get("ocr_spec_models"), True)
+
+        # Update Response Format settings
+        update_env("RESPONSE_CODE_FIELD", config.get("response_code_field"))
+        update_env("RESPONSE_MSG_FIELD", config.get("response_msg_field"))
+        update_env("RESPONSE_SN_FIELD", config.get("response_sn_field"))
+        update_env("RESPONSE_DATA_FIELD", config.get("response_data_field"))
+        update_env("RESPONSE_URL_FIELD", config.get("response_url_field"))
+        update_env("RESPONSE_FILENAME_FIELD", config.get("response_filename_field"))
+        update_env("RESPONSE_IMAGE_FIELD", config.get("response_image_field"))
+        update_env("RESPONSE_SUCCESS_CODE", config.get("response_success_code"))
+        update_env("RESPONSE_ERROR_CODE", config.get("response_error_code"))
         
         # Reload config module to update all variables
         import importlib
@@ -207,8 +232,10 @@ async def update_root_config(request: Request):
         global TG_ENDPOINT, TG_PASSWORD, TG_API
         global FILE_API_ENDPOINT, FILE_API_KEY
         global OCR_ENDPOINT, OCR_SKIP_MODELS, OCR_SPEC_MODELS
+        global RESPONSE_CODE_FIELD, RESPONSE_MSG_FIELD, RESPONSE_SN_FIELD, RESPONSE_DATA_FIELD
+        global RESPONSE_URL_FIELD, RESPONSE_FILENAME_FIELD, RESPONSE_IMAGE_FIELD
+        global RESPONSE_SUCCESS_CODE, RESPONSE_ERROR_CODE
         
-        # Update all global variables
         ADMIN_USER = config.ADMIN_USER
         ADMIN_PASSWORD = config.ADMIN_PASSWORD
         REQUIRE_AUTH = config.REQUIRE_AUTH
@@ -246,24 +273,26 @@ async def update_root_config(request: Request):
         OCR_ENDPOINT = config.OCR_ENDPOINT
         OCR_SKIP_MODELS = config.OCR_SKIP_MODELS
         OCR_SPEC_MODELS = config.OCR_SPEC_MODELS
+
+        RESPONSE_CODE_FIELD = config.RESPONSE_CODE_FIELD
+        RESPONSE_MSG_FIELD = config.RESPONSE_MSG_FIELD
+        RESPONSE_SN_FIELD = config.RESPONSE_SN_FIELD
+        RESPONSE_DATA_FIELD = config.RESPONSE_DATA_FIELD
+        RESPONSE_URL_FIELD = config.RESPONSE_URL_FIELD
+        RESPONSE_FILENAME_FIELD = config.RESPONSE_FILENAME_FIELD
+        RESPONSE_IMAGE_FIELD = config.RESPONSE_IMAGE_FIELD
+        RESPONSE_SUCCESS_CODE = config.RESPONSE_SUCCESS_CODE
+        RESPONSE_ERROR_CODE = config.RESPONSE_ERROR_CODE
         
         # Also update CORS middleware
         app.user_middleware[0].options["allow_origins"] = CORS_ALLOW_ORIGINS
         
-        return {
-            "code": 0,
-            "msg": "Configuration updated successfully",
-            "sn": secrets.token_hex(8),
-            "data": {"status": "success"}
-        }
+        return format_response(True, "Configuration updated successfully")
         
     except Exception as e:
-        return {
-            "code": 1,
-            "msg": str(e),
-            "sn": secrets.token_hex(8),
-            "data": {"status": "error"}
-        }
+        error_msg = str(e)
+        print(f"Error updating configuration: {error_msg}")
+        return format_response(False, error_msg)
 
 
 @app.get("/favicon.ico")
@@ -280,16 +309,32 @@ async def upload(
         model: str = Form(default=""),  # deprecated
 ):
     """Accepts file and returns its contents."""
-
-    if model and len(model) > 0:
-        # compatibility with deprecated model parameter
-        enable_ocr = deprecated_could_enable_ocr(model)
-        enable_vision = not enable_ocr
-
-    if len(OCR_ENDPOINT) == 0:
-        enable_ocr = False
-
     try:
+        if not file or not file.filename:
+            return format_response(False, "No file provided", {
+                "url": "",
+                "filename": "",
+                "image": False
+            })
+
+        if model and len(model) > 0:
+            # compatibility with deprecated model parameter
+            enable_ocr = deprecated_could_enable_ocr(model)
+            enable_vision = not enable_ocr
+
+        if len(OCR_ENDPOINT) == 0:
+            enable_ocr = False
+
+        # 检查文件大小
+        if MAX_FILE_SIZE > 0:
+            file_size = await read_file_size(file)
+            if file_size > MAX_FILE_SIZE:
+                return format_response(False, f"File size {file_size:.2f} MiB exceeds the limit of {MAX_FILE_SIZE} MiB", {
+                    "url": "",
+                    "filename": file.filename,
+                    "image": False
+                })
+
         filetype, contents = await process_file(
             file,
             enable_ocr=enable_ocr,
@@ -300,24 +345,33 @@ async def upload(
         # 检查是否是图片类型
         is_image = filetype in ["image", "png", "jpg", "jpeg", "gif", "webp"]
 
-        return {
-            "code": 0,
-            "msg": "success",
-            "sn": secrets.token_hex(8),
-            "data": {
-                "url": contents,
+        # 检查返回的URL是否有效
+        if not contents or len(contents.strip()) == 0:
+            return format_response(False, "Failed to process file: empty URL returned", {
+                "url": "",
                 "filename": file.filename,
                 "image": is_image
-            }
-        }
+            })
+
+        return format_response(True, "success", {
+            "url": contents.strip(),
+            "filename": file.filename,
+            "image": is_image
+        })
     except Exception as e:
-        return {
-            "code": 1,
-            "msg": str(e),
-            "sn": secrets.token_hex(8),
-            "data": {
-                "url": "",
-                "filename": file.filename if file else "",
-                "image": False
-            }
-        }
+        error_msg = str(e)
+        print(f"Error processing file {file.filename if file else 'unknown'}: {error_msg}")
+        return format_response(False, error_msg, {
+            "url": "",
+            "filename": file.filename if file else "",
+            "image": False
+        })
+
+
+def format_response(success: bool, msg: str, data: dict = None):
+    return {
+        RESPONSE_CODE_FIELD: RESPONSE_SUCCESS_CODE if success else RESPONSE_ERROR_CODE,
+        RESPONSE_MSG_FIELD: msg,
+        RESPONSE_SN_FIELD: secrets.token_hex(8),
+        RESPONSE_DATA_FIELD: data if data else {}
+    }

@@ -57,7 +57,7 @@ async def process_s3(file: UploadFile) -> str:
 
 async def process_file_api(file: UploadFile) -> str:
     """
-    Upload file to File API service and return markdown formatted link
+    Upload file to File API service and return url
     """
     try:
         filename = store_filename(file.filename)
@@ -72,10 +72,7 @@ async def process_file_api(file: UploadFile) -> str:
         
         # Get the URL from response
         result = response.json()
-        file_url = result.get('url', '').strip()
-        
-        # Return markdown formatted link with spaces before and after
-        return f" [{filename}]({file_url}) "
+        return result.get('url', '').strip()
         
     except Exception as e:
         raise ValueError(f"File API upload error: {str(e)}")
