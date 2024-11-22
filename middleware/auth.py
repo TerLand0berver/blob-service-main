@@ -22,18 +22,32 @@ def get_client_ip(request: Request) -> str:
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Skip auth for whitelisted domains and IPs
+        # Get client info
         origin = request.headers.get("origin")
         client_ip = get_client_ip(request)
         
-        if is_domain_allowed(origin) or is_ip_allowed(client_ip):
+        # Check if request is for config endpoints
+        is_config_endpoint = request.url.path.startswith("/api/config") or request.url.path == "/config"
+        
+        # Check if client is whitelisted
+        is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
+        
+        # If client is whitelisted and trying to access config, deny access
+        if is_whitelisted and is_config_endpoint:
+            raise HTTPException(
+                status_code=403,
+                detail="Whitelisted clients cannot modify configuration"
+            )
+            
+        # If client is whitelisted and not accessing config, allow access
+        if is_whitelisted:
             return await call_next(request)
             
-        # Skip auth for static files and non-api paths
-        if not REQUIRE_AUTH or request.url.path.startswith("/static/"):
+        # Skip auth for static files and non-api paths when auth is not required
+        if not REQUIRE_AUTH or (not is_config_endpoint and request.url.path.startswith("/static/")):
             return await call_next(request)
             
-        # Check auth header
+        # For all other cases, require authentication
         auth = request.headers.get("Authorization")
         if not auth:
             raise HTTPException(
