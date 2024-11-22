@@ -43,17 +43,17 @@
 
 
 ## Deploy by Docker
-> Image: `programzmh/chatnio-blob-service`
+> Image: `teraccc/chatnio-blob-service`
 
 ```shell
-docker run -p 8000:8000 programzmh/chatnio-blob-service
+docker run -p 8000:8000 teraccc/chatnio-blob-service
 
 # with environment variables
-# docker run -p 8000:8000 -e AZURE_SPEECH_KEY="..." -e AZURE_SPEECH_REGION="..." programzmh/chatnio-blob-service
+# docker run -p 8000:8000 -e AZURE_SPEECH_KEY="..." -e AZURE_SPEECH_REGION="..." teraccc/chatnio-blob-service
 
 
 # if you are using `local` storage type, you need to mount volume (/static) to the host
-# docker run -p 8000:8000 -v /path/to/static:/static programzmh/chatnio-blob-service
+# docker run -p 8000:8000 -v /path/to/static:/static teraccc/chatnio-blob-service
 ```
 
 > Deploy to [Render.com](https://render.com)
@@ -61,7 +61,7 @@ docker run -p 8000:8000 programzmh/chatnio-blob-service
 > [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://dashboard.render.com/select-image?type=web&image=programzmh%2Fchatnio-blob-service)
 >
 > 
-> Select **Web Service** and **Docker** Image, then input the image `programzmh/chatnio-blob-service` and click **Create Web Service**.
+> Select **Web Service** and **Docker** Image, then input the image `teraccc/chatnio-blob-service` and click **Create Web Service**.
 > > ⭐ Render.com Includes Free **750 Hours** of Usage per Month 
 > 
 
