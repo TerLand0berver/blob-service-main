@@ -13,9 +13,24 @@
 ## Features
 - ⚡ **Out-of-the-Box**: No External Dependencies Required & Support Vercel/Render One-Click Deployment
 - ⭐ **Multiple File Types**: Support Text, Pdf, Docx, Excel, Image, Audio etc.
-- 📦 **Multiple Storage Options**: Base64, Local, S3, Cloudflare R2, Min IO, Telegram CDN etc.
+- 📦 **Multiple Storage Options**: Base64, Local, S3, Cloudflare R2, Min IO, Telegram CDN, File API etc.
 - 🔍 **OCR Support**: Extract Text from Image (Require Paddle OCR API)
 - 🔊 **Audio Support**: Convert Audio to Text (Require Azure Speech to Text Service)
+- 🔐 **Authentication Support**: Basic Authentication and Domain Whitelisting
+- ⚙️ **Dynamic Configuration**: Web UI for Storage and Authentication Settings
+
+## Recent Updates
+### Authentication Enhancement
+- Added basic authentication support with configurable username/password
+- Implemented domain whitelisting for trusted access
+- Added web-based configuration interface
+- Runtime configuration updates without restart
+
+### Storage Options Enhancement
+- Added File API storage support for flexible file handling
+- Improved Telegram CDN integration
+- Enhanced S3-compatible storage configurations
+- Added dynamic storage type switching
 
 ## Supported File Types
 - Text
@@ -178,13 +193,30 @@ Response
     - [x] **Free Storage (Rate Limit)**
     - [x] Support Direct URL Access *(China Mainland User Unfriendly)*
     - [x] **Limited** File Type & Format
-    - [x] Config:
+    - Config:
       - set env `STORAGE_TYPE` to `tg` (e.g. `STORAGE_TYPE=tg`)
       - set env `TG_ENDPOINT` to your TG-STATE Endpoint (e.g. `TG_ENDPOINT=https://tgstate.vercel.app`)
       - *[Optional] if you are using password authentication, you can set `TG_PASSWORD` to your TG-STATE Password*
 
-    
-### `4` 🔍 OCR Config (Optional)
+7. 🌐 File API
+    - [x] **Custom File Storage API**
+    - [x] Flexible Integration
+    - [x] Support Direct URL Access
+    - Config:
+      - set env `STORAGE_TYPE` to `file_api` (e.g. `STORAGE_TYPE=file_api`)
+      - set env `FILE_API_ENDPOINT` to your File API endpoint
+      - set env `FILE_API_KEY` to your File API authentication key (optional)
+
+### `4` 🔐 Authentication Config (Optional)
+> [!NOTE]
+> Authentication can be managed through the web UI at `/config` or environment variables.
+
+- `ADMIN_USER`: Admin username for authentication (Default: `telagod`)
+- `ADMIN_PASSWORD`: Admin password (Default: randomly generated)
+- `WHITELIST_DOMAINS`: Comma-separated list of allowed domains (Default: empty)
+- `REQUIRE_AUTH`: Enable/disable authentication (Default: `true`)
+
+### `5` 🔍 OCR Config (Optional)
 > [!NOTE]
 > OCR Support is based on 👉 [PaddleOCR API](https://github.com/cgcel/PaddleOCRFastAPI) (✔ Self Hosted ✔ Open Source)
 
