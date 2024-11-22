@@ -7,7 +7,7 @@ from botocore.client import Config
 from store.utils import store_filename
 from config import (
     S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_API, S3_DOMAIN, S3_SPACE, S3_SIGN_VERSION,
-    GPTGOD_API_ENDPOINT, GPTGOD_API_KEY,
+    FILE_API_ENDPOINT, FILE_API_KEY,
 )
 
 
@@ -61,10 +61,10 @@ async def process_file_api(file: UploadFile) -> str:
     """
     try:
         filename = store_filename(file.filename)
-        url = f"{GPTGOD_API_ENDPOINT}/v1/file"
+        url = f"{FILE_API_ENDPOINT}/v1/file"
         headers = {}
-        if GPTGOD_API_KEY:
-            headers['Authorization'] = GPTGOD_API_KEY
+        if FILE_API_KEY:
+            headers['Authorization'] = FILE_API_KEY
 
         files = {'file': (filename, file.file, file.content_type)}
         response = requests.post(url, files=files, headers=headers)
@@ -78,4 +78,4 @@ async def process_file_api(file: UploadFile) -> str:
         return f" [{filename}]({file_url}) "
         
     except Exception as e:
-        raise ValueError(f"GPTGod upload error: {str(e)}")
+        raise ValueError(f"File API upload error: {str(e)}")
