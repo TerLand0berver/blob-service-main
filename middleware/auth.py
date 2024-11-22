@@ -27,8 +27,10 @@ def is_static_path(path: str) -> bool:
         "/favicon.ico",
         "/robots.txt",
         "/.well-known/",
+        "/",  # Root path
+        "/index.html",
     }
-    return any(path.startswith(prefix) for prefix in static_paths)
+    return any(path.startswith(prefix) for prefix in static_paths) or path == "/"
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -37,7 +39,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         client_ip = get_client_ip(request)
         path = request.url.path
         
-        # Skip auth for static resources
+        # Skip auth for static resources and root path
         if is_static_path(path):
             return await call_next(request)
         
