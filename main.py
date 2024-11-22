@@ -67,39 +67,111 @@ async def root_page():
 
 @app.get("/root/config")
 async def get_root_config():
-    """Get authentication configuration"""
+    """Get all configuration parameters"""
     return {
+        # Auth settings
         "admin_user": ADMIN_USER,
         "admin_password": ADMIN_PASSWORD,
         "require_auth": REQUIRE_AUTH,
         "whitelist_domains": WHITELIST_DOMAINS,
         "whitelist_ips": WHITELIST_IPS,
+        
+        # General settings
+        "cors_allow_origins": CORS_ALLOW_ORIGINS,
+        "max_file_size": MAX_FILE_SIZE,
+        "pdf_max_images": PDF_MAX_IMAGES,
+        
+        # Azure Speech settings
+        "azure_speech_key": AZURE_SPEECH_KEY,
+        "azure_speech_region": AZURE_SPEECH_REGION,
+        
+        # Storage settings
+        "storage_type": STORAGE_TYPE,
+        "local_storage_domain": LOCAL_STORAGE_DOMAIN,
+        
+        # S3 settings
+        "s3_bucket": S3_BUCKET,
+        "s3_access_key": S3_ACCESS_KEY,
+        "s3_secret_key": S3_SECRET_KEY,
+        "s3_region": S3_REGION,
+        "s3_domain": S3_DOMAIN,
+        "s3_direct_url_domain": S3_DIRECT_URL_DOMAIN,
+        "s3_sign_version": S3_SIGN_VERSION,
+        
+        # Telegram settings
+        "tg_endpoint": TG_ENDPOINT,
+        "tg_password": TG_PASSWORD,
     }
 
 
 @app.post("/root/config")
 async def update_root_config(request: Request):
-    """Update authentication configuration"""
+    """Update all configuration parameters"""
     try:
         config = await request.json()
         
-        # Update authentication environment variables
-        os.environ["ADMIN_USER"] = config["admin_user"]
-        os.environ["ADMIN_PASSWORD"] = config["admin_password"]
-        os.environ["REQUIRE_AUTH"] = str(config["require_auth"]).lower()
-        os.environ["WHITELIST_DOMAINS"] = ",".join(config["whitelist_domains"])
-        os.environ["WHITELIST_IPS"] = ",".join(config["whitelist_ips"])
+        # Helper function to safely update environment variables
+        def update_env(key: str, value, is_list: bool = False):
+            if value is not None:
+                if is_list and isinstance(value, list):
+                    os.environ[key] = ",".join(str(x) for x in value)
+                elif isinstance(value, bool):
+                    os.environ[key] = str(value).lower()
+                else:
+                    os.environ[key] = str(value)
+
+        # Update Auth settings
+        update_env("ADMIN_USER", config.get("admin_user"))
+        update_env("ADMIN_PASSWORD", config.get("admin_password"))
+        update_env("REQUIRE_AUTH", config.get("require_auth"))
+        update_env("WHITELIST_DOMAINS", config.get("whitelist_domains"), True)
+        update_env("WHITELIST_IPS", config.get("whitelist_ips"), True)
         
-        # Reload authentication config module variables
-        global ADMIN_USER, ADMIN_PASSWORD, REQUIRE_AUTH, WHITELIST_DOMAINS, WHITELIST_IPS
+        # Update General settings
+        update_env("CORS_ALLOW_ORIGINS", config.get("cors_allow_origins"), True)
+        update_env("MAX_FILE_SIZE", config.get("max_file_size"))
+        update_env("PDF_MAX_IMAGES", config.get("pdf_max_images"))
         
-        ADMIN_USER = config["admin_user"]
-        ADMIN_PASSWORD = config["admin_password"]
-        REQUIRE_AUTH = config["require_auth"]
-        WHITELIST_DOMAINS = config["whitelist_domains"]
-        WHITELIST_IPS = config["whitelist_ips"]
+        # Update Azure Speech settings
+        update_env("AZURE_SPEECH_KEY", config.get("azure_speech_key"))
+        update_env("AZURE_SPEECH_REGION", config.get("azure_speech_region"))
         
-        return {"status": "success"}
+        # Update Storage settings
+        update_env("STORAGE_TYPE", config.get("storage_type"))
+        update_env("LOCAL_STORAGE_DOMAIN", config.get("local_storage_domain"))
+        
+        # Update S3 settings
+        update_env("S3_BUCKET", config.get("s3_bucket"))
+        update_env("S3_ACCESS_KEY", config.get("s3_access_key"))
+        update_env("S3_SECRET_KEY", config.get("s3_secret_key"))
+        update_env("S3_REGION", config.get("s3_region"))
+        update_env("S3_DOMAIN", config.get("s3_domain"))
+        update_env("S3_DIRECT_URL_DOMAIN", config.get("s3_direct_url_domain"))
+        update_env("S3_SIGN_VERSION", config.get("s3_sign_version"))
+        
+        # Update Telegram settings
+        update_env("TG_ENDPOINT", config.get("tg_endpoint"))
+        update_env("TG_PASSWORD", config.get("tg_password"))
+        
+        # Reload config module variables
+        reload_config_vars = [
+            "ADMIN_USER", "ADMIN_PASSWORD", "REQUIRE_AUTH", "WHITELIST_DOMAINS", "WHITELIST_IPS",
+            "CORS_ALLOW_ORIGINS", "MAX_FILE_SIZE", "PDF_MAX_IMAGES",
+            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION",
+            "STORAGE_TYPE", "LOCAL_STORAGE_DOMAIN",
+            "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION",
+            "S3_DOMAIN", "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
+            "TG_ENDPOINT", "TG_PASSWORD"
+        ]
+        
+        # Update global variables
+        global_dict = globals()
+        for var in reload_config_vars:
+            if var in config:
+                global_dict[var] = config[var]
+        
+        return {"status": "success", "message": "Configuration updated successfully"}
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
