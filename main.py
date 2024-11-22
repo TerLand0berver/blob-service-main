@@ -84,6 +84,7 @@ async def get_root_config():
         # Azure Speech settings
         "azure_speech_key": AZURE_SPEECH_KEY,
         "azure_speech_region": AZURE_SPEECH_REGION,
+        "enable_azure_speech": ENABLE_AZURE_SPEECH,
         
         # Storage settings
         "storage_type": STORAGE_TYPE,
@@ -97,10 +98,22 @@ async def get_root_config():
         "s3_domain": S3_DOMAIN,
         "s3_direct_url_domain": S3_DIRECT_URL_DOMAIN,
         "s3_sign_version": S3_SIGN_VERSION,
+        "s3_api": S3_API,
+        "s3_space": S3_SPACE,
         
         # Telegram settings
         "tg_endpoint": TG_ENDPOINT,
         "tg_password": TG_PASSWORD,
+        "tg_api": TG_API,
+        
+        # File API settings
+        "file_api_endpoint": FILE_API_ENDPOINT,
+        "file_api_key": FILE_API_KEY,
+        
+        # OCR settings
+        "ocr_endpoint": OCR_ENDPOINT,
+        "ocr_skip_models": OCR_SKIP_MODELS,
+        "ocr_spec_models": OCR_SPEC_MODELS,
     }
 
 
@@ -153,15 +166,35 @@ async def update_root_config(request: Request):
         update_env("TG_ENDPOINT", config.get("tg_endpoint"))
         update_env("TG_PASSWORD", config.get("tg_password"))
         
+        # Update File API settings
+        update_env("FILE_API_ENDPOINT", config.get("file_api_endpoint"))
+        update_env("FILE_API_KEY", config.get("file_api_key"))
+        
+        # Update OCR settings
+        update_env("OCR_ENDPOINT", config.get("ocr_endpoint"))
+        update_env("OCR_SKIP_MODELS", config.get("ocr_skip_models"), True)
+        update_env("OCR_SPEC_MODELS", config.get("ocr_spec_models"), True)
+        
         # Reload config module variables
         reload_config_vars = [
+            # Auth settings
             "ADMIN_USER", "ADMIN_PASSWORD", "REQUIRE_AUTH", "WHITELIST_DOMAINS", "WHITELIST_IPS",
+            # General settings
             "CORS_ALLOW_ORIGINS", "MAX_FILE_SIZE", "PDF_MAX_IMAGES",
-            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION",
+            # Azure Speech settings
+            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION", "ENABLE_AZURE_SPEECH",
+            # Storage settings
             "STORAGE_TYPE", "LOCAL_STORAGE_DOMAIN",
+            # S3 settings
             "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION",
             "S3_DOMAIN", "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
-            "TG_ENDPOINT", "TG_PASSWORD"
+            "S3_API", "S3_SPACE",
+            # Telegram settings
+            "TG_ENDPOINT", "TG_PASSWORD", "TG_API",
+            # File API settings
+            "FILE_API_ENDPOINT", "FILE_API_KEY",
+            # OCR settings
+            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS"
         ]
         
         # Update global variables
@@ -169,6 +202,16 @@ async def update_root_config(request: Request):
         for var in reload_config_vars:
             if var in config:
                 global_dict[var] = config[var]
+            elif var == "ENABLE_AZURE_SPEECH":
+                global_dict[var] = bool(config.get("azure_speech_key") and config.get("azure_speech_region"))
+            elif var == "S3_API":
+                global_dict[var] = config.get("s3_domain") or f"https://{config.get('s3_bucket')}.s3.{config.get('s3_region')}.amazonaws.com"
+            elif var == "S3_SPACE":
+                global_dict[var] = config.get("s3_direct_url_domain") or global_dict["S3_API"]
+            elif var == "TG_API":
+                tg_endpoint = config.get("tg_endpoint", "").rstrip("/")
+                tg_password = config.get("tg_password", "")
+                global_dict[var] = tg_endpoint + "/api" + (f"?pass={tg_password}" if tg_password else "")
         
         return {"status": "success", "message": "Configuration updated successfully"}
         

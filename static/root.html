@@ -232,7 +232,35 @@
             </div>
             <div class="form-group">
                 <label for="tg_password">Telegram Password</label>
-                <input type="text" id="tg_password" placeholder="">
+                <input type="password" id="tg_password" placeholder="">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>File API Settings</h2>
+            <div class="form-group">
+                <label for="file_api_endpoint">File API Endpoint</label>
+                <input type="text" id="file_api_endpoint" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="file_api_key">File API Key</label>
+                <input type="password" id="file_api_key" placeholder="">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>OCR Settings</h2>
+            <div class="form-group">
+                <label for="ocr_endpoint">OCR Endpoint</label>
+                <input type="text" id="ocr_endpoint" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="ocr_skip_models">OCR Skip Models (comma-separated)</label>
+                <input type="text" id="ocr_skip_models" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="ocr_spec_models">OCR Specific Models (comma-separated)</label>
+                <input type="text" id="ocr_spec_models" placeholder="">
             </div>
         </div>
 
@@ -327,6 +355,15 @@
                     // Telegram settings
                     document.getElementById('tg_endpoint').value = config.tg_endpoint || '';
                     document.getElementById('tg_password').value = config.tg_password || '';
+                    
+                    // File API settings
+                    document.getElementById('file_api_endpoint').value = config.file_api_endpoint || '';
+                    document.getElementById('file_api_key').value = config.file_api_key || '';
+                    
+                    // OCR settings
+                    document.getElementById('ocr_endpoint').value = config.ocr_endpoint || '';
+                    document.getElementById('ocr_skip_models').value = (config.ocr_skip_models || []).join(',');
+                    document.getElementById('ocr_spec_models').value = (config.ocr_spec_models || []).join(',');
                 }
             } catch (error) {
                 console.error('Failed to load config:', error);
@@ -376,7 +413,16 @@
                     
                     // Telegram settings
                     tg_endpoint: document.getElementById('tg_endpoint').value,
-                    tg_password: document.getElementById('tg_password').value
+                    tg_password: document.getElementById('tg_password').value,
+                    
+                    // File API settings
+                    file_api_endpoint: document.getElementById('file_api_endpoint').value,
+                    file_api_key: document.getElementById('file_api_key').value,
+                    
+                    // OCR settings
+                    ocr_endpoint: document.getElementById('ocr_endpoint').value,
+                    ocr_skip_models: document.getElementById('ocr_skip_models').value.split(',').map(d => d.trim()).filter(Boolean),
+                    ocr_spec_models: document.getElementById('ocr_spec_models').value.split(',').map(d => d.trim()).filter(Boolean)
                 };
 
                 const response = await fetch('/root/config', {
