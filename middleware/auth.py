@@ -20,6 +20,24 @@ def get_client_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else ""
 
+def get_origin_domain(request: Request) -> str:
+    """Get domain from origin header or referer."""
+    origin = request.headers.get("origin")
+    if origin:
+        try:
+            return urlparse(origin).netloc
+        except:
+            pass
+    
+    referer = request.headers.get("referer")
+    if referer:
+        try:
+            return urlparse(referer).netloc
+        except:
+            pass
+            
+    return ""
+
 def is_browser_resource(path: str) -> bool:
     """Check if path is a browser-only resource that should always be accessible."""
     browser_resources = {
@@ -60,9 +78,6 @@ def check_auth(request: Request) -> bool:
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Get client info
-        origin = request.headers.get("origin")
-        client_ip = get_client_ip(request)
         path = request.url.path
         
         # Always allow browser resources
@@ -70,9 +85,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
             
         # Check if client is whitelisted
-        is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
+        client_ip = get_client_ip(request)
+        domain = get_origin_domain(request)
+        is_whitelisted = (not WHITELIST_DOMAINS and not WHITELIST_IPS) or \
+                        (WHITELIST_DOMAINS and is_domain_allowed(domain)) or \
+                        (WHITELIST_IPS and is_ip_allowed(client_ip))
         
-        # Root endpoints require authentication but are always accessible
+        # Root endpoints
         if is_root_endpoint(path):
             # Root page is always accessible
             if path == "/root":
@@ -87,7 +106,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 )
             return await call_next(request)
             
-        # API endpoints and main page only accessible by whitelisted clients
+        # API endpoints and main page
         if is_api_endpoint(path):
             if not is_whitelisted:
                 raise HTTPException(
