@@ -11,16 +11,17 @@ import secrets
 
 app = FastAPI()
 
-# Add authentication middleware
-app.add_middleware(AuthMiddleware)
-
-# Add CORS middleware
+# Add CORS middleware first
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOW_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
+
+# Add authentication middleware after CORS
+app.add_middleware(AuthMiddleware)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
