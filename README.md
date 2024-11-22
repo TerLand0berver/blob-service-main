@@ -4,7 +4,7 @@
 
 ### **🤯 File Service for Chat Nio**
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Deeptrain-Community/chatnio-blob-service)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/TerLand0berver/blob-service-main)
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/RWGFOH)
 
@@ -69,7 +69,7 @@ docker run -p 8000:8000 teraccc/chatnio-blob-service
 The service will be running on `http://localhost:8000`
 ## Run
 ```shell
-git clone --branch=main https://github.com/Deeptrain-Community/chatnio-blob-service
+git clone --branch=main https://github.com/TerLand0berver/blob-service-main
 cd chatnio-blob-service
 
 pip install -r requirements.txt
