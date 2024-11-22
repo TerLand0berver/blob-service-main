@@ -20,14 +20,29 @@ def get_client_ip(request: Request) -> str:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else ""
 
+def is_static_path(path: str) -> bool:
+    """Check if path is a static resource."""
+    static_paths = {
+        "/static/",
+        "/favicon.ico",
+        "/robots.txt",
+        "/.well-known/",
+    }
+    return any(path.startswith(prefix) for prefix in static_paths)
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Get client info
         origin = request.headers.get("origin")
         client_ip = get_client_ip(request)
+        path = request.url.path
+        
+        # Skip auth for static resources
+        if is_static_path(path):
+            return await call_next(request)
         
         # Check if request is for config endpoints
-        is_config_endpoint = request.url.path.startswith("/api/config") or request.url.path == "/config"
+        is_config_endpoint = path.startswith("/api/config") or path == "/config"
         
         # Check if client is whitelisted
         is_whitelisted = is_domain_allowed(origin) or is_ip_allowed(client_ip)
@@ -43,8 +58,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if is_whitelisted:
             return await call_next(request)
             
-        # Skip auth for static files and non-api paths when auth is not required
-        if not REQUIRE_AUTH or (not is_config_endpoint and request.url.path.startswith("/static/")):
+        # Skip auth for non-api paths when auth is not required
+        if not REQUIRE_AUTH and not is_config_endpoint:
             return await call_next(request)
             
         # For all other cases, require authentication
