@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     zlib1g-dev \
     libjpeg-dev \
+    libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -25,7 +26,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir wheel setuptools
 
 # 分步安装Python依赖以便于调试
-RUN pip install --no-cache-dir fastapi==0.68.2 pydantic==1.8.2 uvicorn==0.15.0 python-multipart==0.0.5 && \
+RUN set -x && \
+    pip install --no-cache-dir fastapi==0.68.2 pydantic==1.8.2 uvicorn==0.15.0 python-multipart==0.0.5 && \
     pip install --no-cache-dir aiohttp==3.8.5 aiofiles==0.7.0 && \
     pip install --no-cache-dir python-jose[cryptography]==3.3.0 passlib[bcrypt]==1.7.4 python-dotenv==0.19.0 && \
     pip install --no-cache-dir PyJWT==2.4.0 redis==4.3.4 python-json-logger==2.0.7 && \
@@ -47,6 +49,7 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libmagic1 \
+    libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
