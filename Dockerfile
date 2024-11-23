@@ -17,11 +17,39 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 COPY requirements.txt .
 
-# 使用 pip 缓存安装依赖
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir wheel setuptools && \
-    pip install --no-cache-dir -r requirements.txt
+# 分步安装依赖以避免超时和内存问题
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir wheel setuptools
+
+# 核心依赖
+RUN pip install --no-cache-dir fastapi==0.68.2 \
+    pydantic==1.9.0 \
+    uvicorn==0.15.0 \
+    python-multipart==0.0.5 \
+    aiohttp==3.8.0 \
+    aiofiles==0.7.0
+
+# 安全和工具依赖
+RUN pip install --no-cache-dir python-jose[cryptography]==3.3.0 \
+    passlib[bcrypt]==1.7.4 \
+    python-dotenv==0.19.0 \
+    PyJWT==2.4.0 \
+    redis==4.3.4 \
+    python-json-logger==2.0.4 \
+    cryptography==37.0.4
+
+# 文本处理依赖
+RUN pip install --no-cache-dir pymupdf==1.19.0 \
+    pandas==1.3.0 \
+    openpyxl==3.0.9 \
+    xlrd==2.0.1 \
+    python-docx==0.8.11 \
+    python-magic==0.4.24 \
+    chardet==4.0.0
+
+# 存储依赖
+RUN pip install --no-cache-dir boto3==1.26.0 \
+    botocore==1.29.0
 
 # 最终镜像
 FROM python:3.9-slim-buster
