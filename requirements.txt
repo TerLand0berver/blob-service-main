@@ -28,3 +28,6 @@ chardet>=4.0.0,<6.0.0     # 放宽版本限制
 # Storage
 boto3>=1.26.0            # S3存储支持
 botocore>=1.29.0,<1.33.0 # 限制版本范围
+
+# Image Processing
+Pillow>=9.0.0,<10.0.0    # PIL fork，用于图像处理
