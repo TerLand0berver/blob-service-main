@@ -67,14 +67,8 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Verify Docker credentials
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "Testing Docker login..."
-          docker login -u ${{ secrets.DOCKER_USERNAME }} docker.io
-          echo "Docker login successful"
-
       - name: Build and push Docker image
+        id: docker_build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -86,19 +80,14 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          outputs: type=docker,dest=/tmp/image.tar
-          provenance: false
-
-      - name: Inspect built image
-        run: |
-          docker load < /tmp/image.tar
-          docker image inspect ${{ steps.meta.outputs.tags }}
+          load: true
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'
+          output: 'trivy-results.txt'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -106,21 +95,27 @@ jobs:
 
       - name: Upload Trivy scan results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-results
           path: trivy-results.txt
+          if-no-files-found: warn
+
+      - name: Create build logs directory
+        run: |
+          mkdir -p build-logs
+          cp -r /tmp/.buildx-cache build-logs/ || true
+          docker inspect ${{ steps.meta.outputs.tags }} > build-logs/image-inspect.json || true
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build-logs/
+          if-no-files-found: warn
 
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-      - name: Upload build logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-logs
-          path: |
-            /tmp/.buildx-cache
-            /tmp/image.tar
