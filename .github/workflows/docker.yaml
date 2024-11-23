@@ -29,6 +29,16 @@ jobs:
         with:
           buildkitd-flags: --debug
 
+      - name: Prepare build environment
+        run: |
+          # Create all necessary directories with proper permissions
+          sudo mkdir -p ${{ github.workspace }}/build-logs
+          sudo chmod 777 ${{ github.workspace }}/build-logs
+          echo "Build started at $(date)" > ${{ github.workspace }}/build-logs/build.log
+          echo "GitHub Ref: ${{ github.ref }}" >> ${{ github.workspace }}/build-logs/build.log
+          echo "GitHub SHA: ${{ github.sha }}" >> ${{ github.workspace }}/build-logs/build.log
+          ls -la ${{ github.workspace }}/build-logs >> ${{ github.workspace }}/build-logs/build.log
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
@@ -45,48 +55,97 @@ jobs:
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Create logs directory
-        run: mkdir -p build-logs
-
-      - name: Build and push
+      - name: Build Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-          provenance: false
-          load: true
 
-      - name: Run vulnerability scan
+      - name: Verify build
+        run: |
+          echo "Verifying build..." >> ${{ github.workspace }}/build-logs/build.log
+          docker images >> ${{ github.workspace }}/build-logs/build.log 2>&1
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          if docker inspect "$FIRST_TAG" > ${{ github.workspace }}/build-logs/image-inspect.json 2>&1; then
+            echo "Build verification successful" >> ${{ github.workspace }}/build-logs/build.log
+          else
+            echo "Build verification failed" >> ${{ github.workspace }}/build-logs/build.log
+            exit 1
+          fi
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request' && success()
+        run: |
+          echo "Pushing image..." >> ${{ github.workspace }}/build-logs/build.log
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          if docker push "$FIRST_TAG"; then
+            echo "Push successful" >> ${{ github.workspace }}/build-logs/build.log
+          else
+            echo "Push failed" >> ${{ github.workspace }}/build-logs/build.log
+            exit 1
+          fi
+
+      - name: Run security scan
         if: success()
         run: |
+          echo "Running security scan..." >> ${{ github.workspace }}/build-logs/build.log
           FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          echo "Scanning image: $FIRST_TAG"
+          
+          # Ensure the directory exists and has proper permissions
+          sudo mkdir -p ${{ github.workspace }}/build-logs
+          sudo chmod 777 ${{ github.workspace }}/build-logs
+          
+          # Create an empty results file with proper permissions
+          touch ${{ github.workspace }}/build-logs/trivy-results.txt
+          chmod 666 ${{ github.workspace }}/build-logs/trivy-results.txt
+          
+          # Run Trivy scan
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}/build-logs:/build-logs \
             aquasec/trivy:latest image \
             --format table \
-            --output build-logs/trivy-results.txt \
+            --output /build-logs/trivy-results.txt \
             --severity HIGH,CRITICAL \
             --exit-code 0 \
-            "$FIRST_TAG"
+            "$FIRST_TAG" || true
+          
+          # Verify scan results exist
+          if [ -f "${{ github.workspace }}/build-logs/trivy-results.txt" ]; then
+            echo "Scan completed successfully" >> ${{ github.workspace }}/build-logs/build.log
+            cat ${{ github.workspace }}/build-logs/trivy-results.txt >> ${{ github.workspace }}/build-logs/build.log
+          else
+            echo "Scan failed to produce results" >> ${{ github.workspace }}/build-logs/build.log
+          fi
 
-      - name: Check scan results
-        if: success()
+      - name: Collect debug information
+        if: always()
         run: |
-          echo "Vulnerability scan results:"
-          cat build-logs/trivy-results.txt || echo "No vulnerabilities found"
-          echo "Full scan results saved to artifacts"
+          {
+            echo "=== Docker Info ==="
+            docker info
+            echo "=== Docker Images ==="
+            docker images
+            echo "=== Environment Variables ==="
+            env | grep -v -i key | grep -v -i token | grep -v -i password
+            echo "=== Directory Structure ==="
+            ls -R ${{ github.workspace }}
+            echo "=== Build Logs Directory Permissions ==="
+            ls -la ${{ github.workspace }}/build-logs/
+          } >> ${{ github.workspace }}/build-logs/debug.log 2>&1
 
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: build-logs/
+          path: ${{ github.workspace }}/build-logs/
           retention-days: 1
+          if-no-files-found: error

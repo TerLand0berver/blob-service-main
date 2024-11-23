@@ -1,7 +1,48 @@
+# Version control
+.git
+.gitignore
 .github
-LICENSE
 
+# Documentation
+LICENSE
+README.md
+examples/
+docs/
+
+# Development files
+.env
+.env.*
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# Build files
 install.sh
 package.json
-README.md
 vercel.json
+.vercelignore
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test files
+tests/
+test_*.py
+test_file.txt
+
+# Local development files
+docker-compose*.yml
+docker-compose*.yaml
