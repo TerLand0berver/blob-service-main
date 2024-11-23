@@ -2,66 +2,92 @@ from fastapi import FastAPI, File, UploadFile, Form, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from handlers.processor import process_file, read_file_size
-from handlers.response import ResponseFormatter
-from config import *
-from handlers.ocr import create_ocr_task, deprecated_could_enable_ocr
-from middleware.auth import AuthMiddleware
+from app.parsers.processor import process_file, read_file_size
+from app.core.response import ResponseFormatter
+from app.config import config
+from app.parsers.ocr import create_ocr_task, deprecated_could_enable_ocr
+from app.middleware.auth import AuthMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.core.security import SecurityValidator
 import os
 import secrets
 from datetime import datetime
+import jwt
+from datetime import timedelta
 
 app = FastAPI()
 
-# Add CORS middleware first
+# Add CORS middleware with secure settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ALLOW_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=config.CORS_ALLOW_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
     allow_credentials=True,
+    max_age=3600,
 )
 
-# Add authentication middleware after CORS
+# Add rate limiting middleware
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=config.RATE_LIMIT_PER_MINUTE,
+    burst_limit=config.RATE_LIMIT_BURST
+)
+
+# Add authentication middleware
 app.add_middleware(AuthMiddleware)
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/")
 async def root():
-    return FileResponse("static/index.html")
+    """Redirect to login page if not authenticated, otherwise show index page"""
+    return FileResponse("app/static/login.html")
+
+
+@app.get("/index")
+async def index_page():
+    """Main page for file upload and management"""
+    return FileResponse("app/static/index.html")
 
 
 @app.get("/config")
 async def config_page():
-    return FileResponse("static/config.html")
+    """Configuration page"""
+    return FileResponse("app/static/config.html")
 
 
 @app.get("/api/config")
 async def get_config():
+    """Get basic configuration parameters"""
     return ResponseFormatter.success(
         message="Configuration retrieved successfully",
         data={
-            "storage_type": STORAGE_TYPE,
-            "api_endpoint": FILE_API_ENDPOINT,
-            "api_key": FILE_API_KEY
+            "storage_type": config.STORAGE_TYPE,
+            "api_endpoint": config.FILE_API_ENDPOINT,
+            "api_key": config.FILE_API_KEY
         }
     )
 
 
 @app.post("/api/config")
 async def update_config(request: Request):
+    """Update configuration parameters"""
     try:
-        config = await request.json()
+        data = await request.json()
+        # Update configuration
+        if "storage_type" in data:
+            config.STORAGE_TYPE = data["storage_type"]
+        if "api_endpoint" in data:
+            config.FILE_API_ENDPOINT = data["api_endpoint"]
+        if "api_key" in data:
+            config.FILE_API_KEY = data["api_key"]
         
-        # Update environment variables
-        os.environ["STORAGE_TYPE"] = config["storage_type"]
-        os.environ["FILE_API_ENDPOINT"] = config["api_endpoint"]
-        os.environ["FILE_API_KEY"] = config["api_key"]
-        
-        return ResponseFormatter.success(message="Configuration updated successfully")
+        return ResponseFormatter.success(
+            message="Configuration updated successfully"
+        )
     except Exception as e:
         return ResponseFormatter.error(
             message=f"Failed to update configuration: {str(e)}",
@@ -69,268 +95,111 @@ async def update_config(request: Request):
         )
 
 
-@app.get("/root")
-async def root_page():
-    """Root page for authentication and configuration"""
-    return FileResponse("static/root.html")
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon"""
+    return FileResponse("app/static/favicon.ico")
 
 
-@app.get("/root/config")
-async def get_root_config():
-    """Get all configuration parameters"""
-    return ResponseFormatter.success(
-        message="Configuration retrieved successfully",
-        data={
-            # Auth settings
-            "admin_user": ADMIN_USER,
-            "admin_password": ADMIN_PASSWORD,
-            "require_auth": REQUIRE_AUTH,
-            "whitelist_domains": WHITELIST_DOMAINS,
-            "whitelist_ips": WHITELIST_IPS,
-            
-            # General settings
-            "cors_allow_origins": CORS_ALLOW_ORIGINS,
-            "max_file_size": MAX_FILE_SIZE,
-            "pdf_max_images": PDF_MAX_IMAGES,
-            
-            # Azure Speech settings
-            "azure_speech_key": AZURE_SPEECH_KEY,
-            "azure_speech_region": AZURE_SPEECH_REGION,
-            "enable_azure_speech": ENABLE_AZURE_SPEECH,
-            
-            # Storage settings
-            "storage_type": STORAGE_TYPE,
-            "local_storage_domain": LOCAL_STORAGE_DOMAIN,
-            
-            # S3 settings
-            "s3_bucket": S3_BUCKET,
-            "s3_access_key": S3_ACCESS_KEY,
-            "s3_secret_key": S3_SECRET_KEY,
-            "s3_region": S3_REGION,
-            "s3_domain": S3_DOMAIN,
-            "s3_direct_url_domain": S3_DIRECT_URL_DOMAIN,
-            "s3_sign_version": S3_SIGN_VERSION,
-            "s3_api": S3_API,
-            "s3_space": S3_SPACE,
-            
-            # Telegram settings
-            "tg_endpoint": TG_ENDPOINT,
-            "tg_password": TG_PASSWORD,
-            "tg_api": TG_API,
-            
-            # File API settings
-            "file_api_endpoint": FILE_API_ENDPOINT,
-            "file_api_key": FILE_API_KEY,
-            
-            # OCR settings
-            "ocr_endpoint": OCR_ENDPOINT,
-            "ocr_skip_models": OCR_SKIP_MODELS,
-            "ocr_spec_models": OCR_SPEC_MODELS,
-
-            # Response Format settings
-            "response_code_field": RESPONSE_CODE_FIELD,
-            "response_msg_field": RESPONSE_MSG_FIELD,
-            "response_sn_field": RESPONSE_SN_FIELD,
-            "response_data_field": RESPONSE_DATA_FIELD,
-            "response_url_field": RESPONSE_URL_FIELD,
-            "response_filename_field": RESPONSE_FILENAME_FIELD,
-            "response_image_field": RESPONSE_IMAGE_FIELD,
-            "response_success_code": RESPONSE_SUCCESS_CODE,
-            "response_error_code": RESPONSE_ERROR_CODE,
-        }
-    )
+@app.get("/login")
+async def login_page():
+    """Login page"""
+    return FileResponse("app/static/login.html")
 
 
-@app.post("/root/config")
-async def update_root_config(request: Request):
-    """Update all configuration parameters"""
+@app.post("/api/auth/login")
+async def login(request: Request):
     try:
-        config = await request.json()
+        data = await request.json()
+        username = data.get("username")
+        password = data.get("password")
         
-        # Helper function to safely update environment variables
-        def update_env(key: str, value, is_list: bool = False):
-            if value is not None:
-                if is_list and isinstance(value, list):
-                    os.environ[key] = ",".join(str(x) for x in value)
-                elif isinstance(value, bool):
-                    os.environ[key] = str(value).lower()
-                else:
-                    os.environ[key] = str(value)
-
-        # Clear existing environment variables first
-        env_vars = [
-            "ADMIN_USER", "ADMIN_PASSWORD", "REQUIRE_AUTH", "WHITELIST_DOMAINS", "WHITELIST_IPS",
-            "CORS_ALLOW_ORIGINS", "MAX_FILE_SIZE", "PDF_MAX_IMAGES",
-            "AZURE_SPEECH_KEY", "AZURE_SPEECH_REGION",
-            "STORAGE_TYPE", "LOCAL_STORAGE_DOMAIN",
-            "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_REGION", "S3_DOMAIN",
-            "S3_DIRECT_URL_DOMAIN", "S3_SIGN_VERSION",
-            "TG_ENDPOINT", "TG_PASSWORD",
-            "FILE_API_ENDPOINT", "FILE_API_KEY",
-            "OCR_ENDPOINT", "OCR_SKIP_MODELS", "OCR_SPEC_MODELS",
-            "RESPONSE_CODE_FIELD", "RESPONSE_MSG_FIELD", "RESPONSE_SN_FIELD", "RESPONSE_DATA_FIELD",
-            "RESPONSE_URL_FIELD", "RESPONSE_FILENAME_FIELD", "RESPONSE_IMAGE_FIELD",
-            "RESPONSE_SUCCESS_CODE", "RESPONSE_ERROR_CODE"
-        ]
-        for var in env_vars:
-            if var in os.environ:
-                del os.environ[var]
-
-        # Update Auth settings
-        update_env("ADMIN_USER", config.get("admin_user"))
-        update_env("ADMIN_PASSWORD", config.get("admin_password"))
-        update_env("REQUIRE_AUTH", config.get("require_auth"))
-        update_env("WHITELIST_DOMAINS", config.get("whitelist_domains"), True)
-        update_env("WHITELIST_IPS", config.get("whitelist_ips"), True)
+        if not username or not password:
+            return ResponseFormatter.error(
+                message="Username and password are required",
+                status_code=400
+            )
+            
+        # Validate credentials
+        if username != config.ADMIN_USER:
+            return ResponseFormatter.error(
+                message="Invalid credentials",
+                status_code=401
+            )
+            
+        # Validate password strength for new password
+        if "new_password" in data:
+            is_valid, error_msg = SecurityValidator.validate_password(data["new_password"])
+            if not is_valid:
+                return ResponseFormatter.error(
+                    message=error_msg,
+                    status_code=400
+                )
+            password = data["new_password"]
+            
+        if password != config.ADMIN_PASSWORD:
+            return ResponseFormatter.error(
+                message="Invalid credentials",
+                status_code=401
+            )
         
-        # Update General settings
-        update_env("CORS_ALLOW_ORIGINS", config.get("cors_allow_origins"), True)
-        update_env("MAX_FILE_SIZE", config.get("max_file_size"))
-        update_env("PDF_MAX_IMAGES", config.get("pdf_max_images"))
+        # Generate JWT token
+        token = jwt.encode(
+            {
+                "sub": username,
+                "exp": datetime.utcnow() + timedelta(hours=24)
+            },
+            config.JWT_SECRET_KEY,
+            algorithm="HS256"
+        )
         
-        # Update Azure Speech settings
-        update_env("AZURE_SPEECH_KEY", config.get("azure_speech_key"))
-        update_env("AZURE_SPEECH_REGION", config.get("azure_speech_region"))
+        response = ResponseFormatter.success(
+            message="Login successful",
+            data={"token": token}
+        )
         
-        # Update Storage settings
-        update_env("STORAGE_TYPE", config.get("storage_type"))
-        update_env("LOCAL_STORAGE_DOMAIN", config.get("local_storage_domain"))
+        # Set cookie
+        response.set_cookie(
+            key="auth_token",
+            value=token,
+            httponly=True,
+            max_age=86400,  # 24 hours
+            secure=True,
+            samesite="strict"
+        )
         
-        # Update S3 settings
-        update_env("S3_BUCKET", config.get("s3_bucket"))
-        update_env("S3_ACCESS_KEY", config.get("s3_access_key"))
-        update_env("S3_SECRET_KEY", config.get("s3_secret_key"))
-        update_env("S3_REGION", config.get("s3_region"))
-        update_env("S3_DOMAIN", config.get("s3_domain"))
-        update_env("S3_DIRECT_URL_DOMAIN", config.get("s3_direct_url_domain"))
-        update_env("S3_SIGN_VERSION", config.get("s3_sign_version"))
-        
-        # Update Telegram settings
-        update_env("TG_ENDPOINT", config.get("tg_endpoint"))
-        update_env("TG_PASSWORD", config.get("tg_password"))
-        
-        # Update File API settings
-        update_env("FILE_API_ENDPOINT", config.get("file_api_endpoint"))
-        update_env("FILE_API_KEY", config.get("file_api_key"))
-        
-        # Update OCR settings
-        update_env("OCR_ENDPOINT", config.get("ocr_endpoint"))
-        update_env("OCR_SKIP_MODELS", config.get("ocr_skip_models"), True)
-        update_env("OCR_SPEC_MODELS", config.get("ocr_spec_models"), True)
-
-        # Update Response Format settings
-        update_env("RESPONSE_CODE_FIELD", config.get("response_code_field"))
-        update_env("RESPONSE_MSG_FIELD", config.get("response_msg_field"))
-        update_env("RESPONSE_SN_FIELD", config.get("response_sn_field"))
-        update_env("RESPONSE_DATA_FIELD", config.get("response_data_field"))
-        update_env("RESPONSE_URL_FIELD", config.get("response_url_field"))
-        update_env("RESPONSE_FILENAME_FIELD", config.get("response_filename_field"))
-        update_env("RESPONSE_IMAGE_FIELD", config.get("response_image_field"))
-        update_env("RESPONSE_SUCCESS_CODE", config.get("response_success_code"))
-        update_env("RESPONSE_ERROR_CODE", config.get("response_error_code"))
-        
-        # Reload config module to update all variables
-        import importlib
-        import config
-        importlib.reload(config)
-        
-        # Update global variables from reloaded config
-        global ADMIN_USER, ADMIN_PASSWORD, REQUIRE_AUTH, WHITELIST_DOMAINS, WHITELIST_IPS
-        global CORS_ALLOW_ORIGINS, MAX_FILE_SIZE, PDF_MAX_IMAGES
-        global AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, ENABLE_AZURE_SPEECH
-        global STORAGE_TYPE, LOCAL_STORAGE_DOMAIN
-        global S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_DOMAIN
-        global S3_DIRECT_URL_DOMAIN, S3_SIGN_VERSION, S3_API, S3_SPACE
-        global TG_ENDPOINT, TG_PASSWORD, TG_API
-        global FILE_API_ENDPOINT, FILE_API_KEY
-        global OCR_ENDPOINT, OCR_SKIP_MODELS, OCR_SPEC_MODELS
-        global RESPONSE_CODE_FIELD, RESPONSE_MSG_FIELD, RESPONSE_SN_FIELD, RESPONSE_DATA_FIELD
-        global RESPONSE_URL_FIELD, RESPONSE_FILENAME_FIELD, RESPONSE_IMAGE_FIELD
-        global RESPONSE_SUCCESS_CODE, RESPONSE_ERROR_CODE
-        
-        ADMIN_USER = config.ADMIN_USER
-        ADMIN_PASSWORD = config.ADMIN_PASSWORD
-        REQUIRE_AUTH = config.REQUIRE_AUTH
-        WHITELIST_DOMAINS = config.WHITELIST_DOMAINS
-        WHITELIST_IPS = config.WHITELIST_IPS
-        
-        CORS_ALLOW_ORIGINS = config.CORS_ALLOW_ORIGINS
-        MAX_FILE_SIZE = config.MAX_FILE_SIZE
-        PDF_MAX_IMAGES = config.PDF_MAX_IMAGES
-        
-        AZURE_SPEECH_KEY = config.AZURE_SPEECH_KEY
-        AZURE_SPEECH_REGION = config.AZURE_SPEECH_REGION
-        ENABLE_AZURE_SPEECH = config.ENABLE_AZURE_SPEECH
-        
-        STORAGE_TYPE = config.STORAGE_TYPE
-        LOCAL_STORAGE_DOMAIN = config.LOCAL_STORAGE_DOMAIN
-        
-        S3_BUCKET = config.S3_BUCKET
-        S3_ACCESS_KEY = config.S3_ACCESS_KEY
-        S3_SECRET_KEY = config.S3_SECRET_KEY
-        S3_REGION = config.S3_REGION
-        S3_DOMAIN = config.S3_DOMAIN
-        S3_DIRECT_URL_DOMAIN = config.S3_DIRECT_URL_DOMAIN
-        S3_SIGN_VERSION = config.S3_SIGN_VERSION
-        S3_API = config.S3_API
-        S3_SPACE = config.S3_SPACE
-        
-        TG_ENDPOINT = config.TG_ENDPOINT
-        TG_PASSWORD = config.TG_PASSWORD
-        TG_API = config.TG_API
-        
-        FILE_API_ENDPOINT = config.FILE_API_ENDPOINT
-        FILE_API_KEY = config.FILE_API_KEY
-        
-        OCR_ENDPOINT = config.OCR_ENDPOINT
-        OCR_SKIP_MODELS = config.OCR_SKIP_MODELS
-        OCR_SPEC_MODELS = config.OCR_SPEC_MODELS
-
-        RESPONSE_CODE_FIELD = config.RESPONSE_CODE_FIELD
-        RESPONSE_MSG_FIELD = config.RESPONSE_MSG_FIELD
-        RESPONSE_SN_FIELD = config.RESPONSE_SN_FIELD
-        RESPONSE_DATA_FIELD = config.RESPONSE_DATA_FIELD
-        RESPONSE_URL_FIELD = config.RESPONSE_URL_FIELD
-        RESPONSE_FILENAME_FIELD = config.RESPONSE_FILENAME_FIELD
-        RESPONSE_IMAGE_FIELD = config.RESPONSE_IMAGE_FIELD
-        RESPONSE_SUCCESS_CODE = config.RESPONSE_SUCCESS_CODE
-        RESPONSE_ERROR_CODE = config.RESPONSE_ERROR_CODE
-        
-        # Update CORS middleware
-        for middleware in app.user_middleware:
-            if isinstance(middleware.cls, CORSMiddleware):
-                middleware.options["allow_origins"] = CORS_ALLOW_ORIGINS
-                break
-        
-        # Save configuration to file
-        config.save_config_file()
-        
-        return ResponseFormatter.success(message="Configuration updated successfully")
-        
+        return response
     except Exception as e:
-        error_msg = str(e)
-        print(f"Error updating configuration: {error_msg}")
         return ResponseFormatter.error(
-            message=error_msg,
+            message=str(e),
             status_code=500
         )
 
 
-@app.get("/favicon.ico")
-def favicon():
-    return FileResponse("favicon.ico")
+@app.post("/api/auth/logout")
+async def logout():
+    """Handle logout request"""
+    response = ResponseFormatter.success(message="Logout successful")
+    response.delete_cookie(key="auth_token")
+    return response
 
 
-@app.post("/upload")
+@app.post("/api/upload")
 async def upload(
-        file: UploadFile = File(...),
-        enable_ocr: bool = Form(default=False),
-        enable_vision: bool = Form(default=True),
-        save_all: bool = Form(default=False),
-        model: str = Form(default=""),  # deprecated
+    file: UploadFile = File(...),
+    enable_ocr: bool = Form(default=False),
+    enable_vision: bool = Form(default=True),
+    save_all: bool = Form(default=False),
 ):
-    """Accepts file and returns its contents."""
     try:
+        # Validate file
+        is_valid, error_msg = await SecurityValidator.validate_file(file, config.MAX_FILE_SIZE)
+        if not is_valid:
+            return ResponseFormatter.error(
+                message=error_msg,
+                status_code=400
+            )
+        
         if not file or not file.filename:
             return ResponseFormatter.error(
                 message="No file provided",
@@ -342,20 +211,37 @@ async def upload(
                 }
             )
 
-        if model and len(model) > 0:
-            # compatibility with deprecated model parameter
-            enable_ocr = deprecated_could_enable_ocr(model)
-            enable_vision = not enable_ocr
+        # 验证文件类型
+        filename = file.filename.lower()
+        allowed_extensions = {
+            '.txt', '.pdf', '.doc', '.docx', 
+            '.xls', '.xlsx', '.csv', '.tsv',
+            '.py', '.js', '.java', '.cpp', '.c',
+            '.h', '.cs', '.php', '.rb', '.go',
+            '.rs', '.swift', '.kt', '.scala'
+        }
+        
+        file_ext = os.path.splitext(filename)[1]
+        if file_ext not in allowed_extensions:
+            return ResponseFormatter.error(
+                message=f"Unsupported file type: {file_ext}",
+                status_code=400,
+                data={
+                    "url": "",
+                    "filename": filename,
+                    "image": False
+                }
+            )
 
-        if len(OCR_ENDPOINT) == 0:
+        if len(config.OCR_ENDPOINT) == 0:
             enable_ocr = False
 
         # 检查文件大小
-        if MAX_FILE_SIZE > 0:
+        if config.MAX_FILE_SIZE > 0:
             file_size = await read_file_size(file)
-            if file_size > MAX_FILE_SIZE:
+            if file_size > config.MAX_FILE_SIZE:
                 return ResponseFormatter.error(
-                    message=f"File size {file_size:.2f} MiB exceeds the limit of {MAX_FILE_SIZE} MiB",
+                    message=f"File size {file_size:.2f} MiB exceeds the limit of {config.MAX_FILE_SIZE} MiB",
                     status_code=400,
                     data={
                         "url": "",

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuration - Blob Service</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://open.lightxi.com/fonts/Inter" rel="stylesheet">
+    <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/config">Configuration</a>
+            </div>
+            <button onclick="handleLogout()">Logout</button>
+        </div>
+
+        <h1>Blob Service Configuration</h1>
+        
+        <div class="section">
+            <h2>Authentication Settings</h2>
+            <div class="form-group">
+                <label for="admin_user">Admin Username</label>
+                <input type="text" id="admin_user" placeholder="root">
+            </div>
+            <div class="form-group">
+                <label for="admin_password">Admin Password</label>
+                <input type="password" id="admin_password" placeholder="root123456">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="require_auth">
+                    Enable Authentication
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="whitelist_domains">Whitelisted Domains (comma-separated)</label>
+                <input type="text" id="whitelist_domains" placeholder="example.com,test.com">
+            </div>
+            <div class="form-group">
+                <label for="whitelist_ips">Whitelisted IPs (comma-separated)</label>
+                <input type="text" id="whitelist_ips" placeholder="127.0.0.1,192.168.1.1">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Storage Settings</h2>
+            <div class="form-group">
+                <label for="storage_type">Storage Type</label>
+                <select id="storage_type">
+                    <option value="local">Local Storage</option>
+                    <option value="s3">S3 Storage</option>
+                </select>
+            </div>
+            
+            <!-- Local Storage Settings -->
+            <div id="local_storage_settings">
+                <div class="form-group">
+                    <label for="local_storage_path">Storage Path</label>
+                    <input type="text" id="local_storage_path" placeholder="/data/files">
+                </div>
+                <div class="form-group">
+                    <label for="local_storage_domain">Storage Domain</label>
+                    <input type="text" id="local_storage_domain" placeholder="https://example.com/files">
+                </div>
+            </div>
+
+            <!-- S3 Storage Settings -->
+            <div id="s3_storage_settings" style="display: none;">
+                <div class="form-group">
+                    <label for="s3_access_key">Access Key</label>
+                    <input type="text" id="s3_access_key">
+                </div>
+                <div class="form-group">
+                    <label for="s3_secret_key">Secret Key</label>
+                    <input type="password" id="s3_secret_key">
+                </div>
+                <div class="form-group">
+                    <label for="s3_bucket_name">Bucket Name</label>
+                    <input type="text" id="s3_bucket_name">
+                </div>
+                <div class="form-group">
+                    <label for="s3_endpoint_url">Endpoint URL (optional)</label>
+                    <input type="text" id="s3_endpoint_url" placeholder="https://s3.amazonaws.com">
+                </div>
+                <div class="form-group">
+                    <label for="s3_region_name">Region Name (optional)</label>
+                    <input type="text" id="s3_region_name" placeholder="us-east-1">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Feature Settings</h2>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable_ocr">
+                    Enable OCR
+                </label>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable_vision">
+                    Enable Vision API
+                </label>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="enable_azure_speech">
+                    Enable Azure Speech
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="ocr_languages">OCR Languages (comma-separated)</label>
+                <input type="text" id="ocr_languages" placeholder="eng,chi_sim">
+            </div>
+            <div class="form-group">
+                <label for="vision_api_key">Vision API Key</label>
+                <input type="password" id="vision_api_key">
+            </div>
+            <div class="form-group">
+                <label for="azure_speech_key">Azure Speech Key</label>
+                <input type="password" id="azure_speech_key">
+            </div>
+            <div class="form-group">
+                <label for="azure_speech_region">Azure Speech Region</label>
+                <input type="text" id="azure_speech_region" placeholder="eastus">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Limit Settings</h2>
+            <div class="form-group">
+                <label for="max_file_size">Max File Size (MB)</label>
+                <input type="number" id="max_file_size" value="10">
+            </div>
+            <div class="form-group">
+                <label for="allowed_extensions">Allowed File Extensions (comma-separated)</label>
+                <input type="text" id="allowed_extensions" placeholder="jpg,png,pdf">
+            </div>
+            <div class="form-group">
+                <label for="max_ocr_size">Max OCR File Size (MB)</label>
+                <input type="number" id="max_ocr_size" value="5">
+            </div>
+            <div class="form-group">
+                <label for="max_vision_size">Max Vision API File Size (MB)</label>
+                <input type="number" id="max_vision_size" value="5">
+            </div>
+            <div class="form-group">
+                <label for="max_speech_size">Max Speech File Size (MB)</label>
+                <input type="number" id="max_speech_size" value="10">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Server Settings</h2>
+            <div class="form-group">
+                <label for="server_host">Server Host</label>
+                <input type="text" id="server_host" placeholder="0.0.0.0">
+            </div>
+            <div class="form-group">
+                <label for="server_port">Server Port</label>
+                <input type="number" id="server_port" value="8000">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="server_debug">
+                    Enable Debug Mode
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="cors_origins">CORS Origins (comma-separated)</label>
+                <input type="text" id="cors_origins" placeholder="http://localhost:3000">
+            </div>
+            <div class="form-group">
+                <label for="log_level">Log Level</label>
+                <select id="log_level">
+                    <option value="debug">Debug</option>
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="request_timeout">Request Timeout (seconds)</label>
+                <input type="number" id="request_timeout" value="30">
+            </div>
+        </div>
+
+        <button onclick="handleSave()">Save Configuration</button>
+        <div id="message"></div>
+    </div>
+
+    <script type="module">
+        import config from '/static/js/config.js';
+        import auth from '/static/js/auth.js';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check authentication
+            if (!await auth.checkAuth()) {
+                window.location.href = '/login';
+                return;
+            }
+
+            // Load configuration
+            await config.load();
+
+            // Add storage type change listener
+            document.getElementById('storage_type').addEventListener('change', () => {
+                config._updateStorageSettings();
+            });
+        });
+
+        // Handle save
+        window.handleSave = async function() {
+            await config.save();
+        };
+
+        // Handle logout
+        window.handleLogout = async function() {
+            await auth.logout();
+        };
+    </script>
+</body>
+</html>
