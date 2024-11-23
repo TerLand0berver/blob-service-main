@@ -4,6 +4,13 @@ FROM python:3.9-slim-buster
 RUN apt-get update && apt-get install -y \
     libmagic1 \
     curl \
+    gcc \
+    g++ \
+    libxml2-dev \
+    libxslt-dev \
+    zlib1g-dev \
+    libjpeg-dev \
+    libpng-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
@@ -19,7 +26,8 @@ RUN chmod +x /docker-entrypoint.sh && chown appuser:appuser /docker-entrypoint.s
 
 # 安装依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir wheel setuptools
 
 # 复制应用代码
 COPY . .
