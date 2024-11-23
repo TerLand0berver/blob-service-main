@@ -7,12 +7,40 @@ handle_error() {
     exit 1
 }
 
+# 函数：检查系统依赖
+check_system_dependencies() {
+    local deps=("ffmpeg" "antiword" "curl")
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            echo "Error: Required dependency '$dep' is not installed"
+            exit 1
+        fi
+    done
+}
+
+# 函数：检查Python依赖
+check_python_dependencies() {
+    local required_packages=("Pillow" "pydub" "python-magic" "pymupdf" "python-docx" "pandas")
+    for package in "${required_packages[@]}"; do
+        if ! python3 -c "import importlib; importlib.import_module('${package,,}')" &> /dev/null; then
+            echo "Error: Required Python package '$package' is not installed"
+            exit 1
+        fi
+    done
+}
+
 # 设置错误处理
 trap 'handle_error ${LINENO}' ERR
 
+# 检查系统用户
+if ! id -u appuser &>/dev/null; then
+    echo "Error: appuser does not exist"
+    exit 1
+fi
+
 # 创建必要的目录
 echo "Creating and configuring directories..."
-directories=("/data" "/data/files" "/app/logs")
+directories=("/data" "/data/files" "/data/temp" "/app/logs")
 for dir in "${directories[@]}"; do
     if [ ! -d "$dir" ]; then
         echo "Creating directory: $dir"
@@ -31,6 +59,7 @@ if [ ! -f "/data/config.json" ]; then
     "storage": {
         "type": "${STORAGE_TYPE:-local}",
         "local_path": "/data/files",
+        "temp_path": "/data/temp",
         "s3": {
             "access_key": "${S3_ACCESS_KEY:-}",
             "secret_key": "${S3_SECRET_KEY:-}",
@@ -44,12 +73,20 @@ if [ ! -f "/data/config.json" ]; then
         "admin_user": "${ADMIN_USER:-admin}"
     },
     "limits": {
-        "max_file_size": ${MAX_FILE_SIZE:-10485760}
+        "max_file_size": ${MAX_FILE_SIZE:-10485760},
+        "max_image_dimension": ${MAX_IMAGE_DIMENSION:-4096},
+        "max_pdf_pages": ${MAX_PDF_PAGES:-1000}
     },
     "features": {
         "ocr_enabled": ${ENABLE_OCR:-false},
         "vision_enabled": ${ENABLE_VISION:-true},
         "azure_speech_enabled": ${ENABLE_AZURE_SPEECH:-false}
+    },
+    "processing": {
+        "image_quality": ${IMAGE_QUALITY:-85},
+        "force_webp": ${FORCE_WEBP:-true},
+        "video_bitrate": "${VIDEO_BITRATE:-2M}",
+        "audio_bitrate": "${AUDIO_BITRATE:-192k}"
     }
 }
 EOF
@@ -57,12 +94,10 @@ EOF
     chmod 644 "/data/config.json"
 fi
 
-# 检查Python环境
-echo "Checking Python environment..."
-if ! command -v python3 &> /dev/null; then
-    echo "Error: Python3 is not installed"
-    exit 1
-fi
+# 检查环境
+echo "Checking environment..."
+check_system_dependencies
+check_python_dependencies
 
 # 验证配置文件
 echo "Validating configuration..."
@@ -71,8 +106,12 @@ if ! python3 -c "import json; json.load(open('/data/config.json'))"; then
     exit 1
 fi
 
+# 清理临时文件
+echo "Cleaning temporary files..."
+find /data/temp -type f -mtime +1 -delete 2>/dev/null || true
+
 echo "Initialization completed successfully"
 
 # 执行主命令
-echo "Starting application..."
+echo "Starting application with command: $@"
 exec "$@"

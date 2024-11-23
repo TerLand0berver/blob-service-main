@@ -1,5 +1,8 @@
+# 构建参数
+ARG PYTHON_VERSION=3.9
+
 # 构建依赖阶段
-FROM python:3.9-slim-bullseye AS builder
+FROM python:${PYTHON_VERSION}-slim-bullseye AS builder
 
 # 安装构建依赖
 RUN apt-get update && \
@@ -16,6 +19,8 @@ RUN apt-get update && \
     zlib1g-dev \
     libmupdf-dev \
     libgl1-mesa-dev \
+    ffmpeg \
+    antiword \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -30,7 +35,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 最终运行时镜像
-FROM python:3.9-slim-bullseye
+FROM python:${PYTHON_VERSION}-slim-bullseye
 
 # 安装运行时依赖
 RUN apt-get update && \
@@ -44,6 +49,8 @@ RUN apt-get update && \
     libglib2.0-0 \
     libmupdf-dev \
     curl \
+    ffmpeg \
+    antiword \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
@@ -55,7 +62,7 @@ RUN mkdir -p /data /app/logs && \
     chown -R appuser:appuser /data /app/logs
 
 # 复制Python依赖
-COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
+COPY --from=builder /usr/local/lib/python${PYTHON_VERSION}/site-packages/ /usr/local/lib/python${PYTHON_VERSION}/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # 复制应用代码
