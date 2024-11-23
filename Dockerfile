@@ -10,8 +10,6 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libtiff5-dev \
     libwebp-dev \
-    libavif-dev \
-    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -35,7 +33,7 @@ RUN apt-get update && apt-get install -y \
     libpng16-16 \
     libtiff5 \
     libwebp6 \
-    libavif \
+    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
