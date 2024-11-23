@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     libffi-dev \
     zlib1g-dev \
-    libjpeg-dev \
     libmupdf-dev \
+    libgl1-mesa-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -34,7 +34,7 @@ RUN set -x && \
     pip install --no-cache-dir boto3==1.26.0 python-magic==0.4.27 && \
     pip install --no-cache-dir pymupdf==1.19.0 python-docx==0.8.11 chardet==4.0.0 && \
     pip install --no-cache-dir Pillow==9.5.0 && \
-    pip install --no-cache-dir pyyaml==6.0.1
+    pip install --no-cache-dir pyyaml==6.0.1 aioredis==2.0.1 async-timeout==4.0.2
 
 # 最终运行时镜像
 FROM python:3.9-slim-buster
@@ -48,8 +48,8 @@ RUN apt-get update && apt-get install -y \
     libwebp6 \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    libmagic1 \
     libmupdf-dev \
+    libgl1-mesa-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
@@ -57,7 +57,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # 创建必要的目录
 WORKDIR /app
-RUN mkdir -p /data && chown -R appuser:appuser /data
+RUN mkdir -p /data /app/logs && chown -R appuser:appuser /data /app/logs
 
 # 从构建阶段复制Python包
 COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
@@ -71,7 +71,8 @@ RUN chown -R appuser:appuser /app
 ENV PYTHONUNBUFFERED=1 \
     CONFIG_DIR=/data \
     CONFIG_FILE=/data/config.json \
-    PATH="/home/appuser/.local/bin:$PATH"
+    PATH="/home/appuser/.local/bin:$PATH" \
+    AUDIT_LOG_PATH=/app/logs/audit.log
 
 # 切换到非root用户
 USER appuser
