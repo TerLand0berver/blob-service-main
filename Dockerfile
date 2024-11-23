@@ -37,6 +37,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 最终运行时镜像
 FROM python:${PYTHON_VERSION}-slim-bullseye
 
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser -s /sbin/nologin appuser
+
 # 安装运行时依赖
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -49,17 +52,11 @@ RUN apt-get update && \
     libglib2.0-0 \
     libmupdf-dev \
     curl \
-    ffmpeg \
-    antiword \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# 创建非root用户
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# 创建必要的目录并设置权限
+# 设置工作目录
 WORKDIR /app
-RUN mkdir -p /data /app/logs && \
-    chown -R appuser:appuser /data /app/logs
 
 # 复制Python依赖
 COPY --from=builder /usr/local/lib/python${PYTHON_VERSION}/site-packages/ /usr/local/lib/python${PYTHON_VERSION}/site-packages/
@@ -71,10 +68,14 @@ COPY --chown=appuser:appuser . .
 # 设置环境变量
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/bin:${PATH}"
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/bin:/home/appuser/.local/bin:${PATH}"
 
 # 切换到非root用户
 USER appuser
+
+# 暴露端口
+EXPOSE 8000
 
 # 设置健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

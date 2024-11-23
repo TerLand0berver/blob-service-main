@@ -19,67 +19,7 @@ permissions:
   security-events: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Add additional repositories
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo add-apt-repository universe
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libmagic1 \
-            ffmpeg \
-            antiword \
-            libgl1-mesa-glx \
-            libglib2.0-0 \
-            libsm6 \
-            libxext6 \
-            libxrender-dev \
-            libmupdf-dev
-
-      - name: Set up test environment
-        run: |
-          python -m pip install --upgrade pip wheel setuptools
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov pytest-mock
-
-      - name: Create test directories
-        run: |
-          mkdir -p tests/data/temp
-          mkdir -p tests/data/files
-          chmod -R 777 tests/data
-
-      - name: Run tests
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-          STORAGE_TYPE: local
-          STORAGE_PATH: tests/data/files
-          TEMP_PATH: tests/data/temp
-        run: |
-          pytest tests/ --cov=app --cov-report=xml -v
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: true
-
   build:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

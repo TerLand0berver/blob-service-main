@@ -66,8 +66,9 @@ async def get_config():
         message="Configuration retrieved successfully",
         data={
             "storage_type": config.STORAGE_TYPE,
-            "api_endpoint": config.FILE_API_ENDPOINT,
-            "api_key": config.FILE_API_KEY
+            "max_file_size": config.MAX_FILE_SIZE,
+            "enable_ocr": config.ENABLE_OCR,
+            "enable_vision": config.ENABLE_VISION
         }
     )
 
@@ -77,21 +78,37 @@ async def update_config(request: Request):
     """Update configuration parameters"""
     try:
         data = await request.json()
-        # Update configuration
-        if "storage_type" in data:
-            config.STORAGE_TYPE = data["storage_type"]
-        if "api_endpoint" in data:
-            config.FILE_API_ENDPOINT = data["api_endpoint"]
-        if "api_key" in data:
-            config.FILE_API_KEY = data["api_key"]
+        validator = SecurityValidator()
+        
+        # 验证输入数据
+        if not validator.validate_config_update(data):
+            raise ValueError("Invalid configuration data")
+            
+        # 只允许更新非敏感配置
+        allowed_fields = {
+            "storage_type": ["local", "s3"],
+            "enable_ocr": [True, False],
+            "enable_vision": [True, False]
+        }
+        
+        for field, allowed_values in allowed_fields.items():
+            if field in data:
+                if data[field] not in allowed_values:
+                    raise ValueError(f"Invalid value for {field}")
+                setattr(config, field.upper(), data[field])
         
         return ResponseFormatter.success(
             message="Configuration updated successfully"
         )
+    except ValueError as e:
+        return ResponseFormatter.error(
+            message=str(e),
+            status_code=400
+        )
     except Exception as e:
         return ResponseFormatter.error(
-            message=f"Failed to update configuration: {str(e)}",
-            status_code=400
+            message="Internal server error",
+            status_code=500
         )
 
 

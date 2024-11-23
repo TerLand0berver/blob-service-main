@@ -20,6 +20,8 @@ class ErrorCode(str, Enum):
     RATE_LIMIT = "rate_limit"
     BAD_REQUEST = "bad_request"
     SERVER_ERROR = "server_error"
+    PROCESSING_ERROR = "processing_error"
+    OCR_ERROR = "ocr_error"
 
 class AppError(Exception):
     """Base application error."""
@@ -127,13 +129,13 @@ class ValidationError(AppError):
     def __init__(
         self,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        status_code: int = 400
     ):
         super().__init__(
             message=message,
             code=ErrorCode.VALIDATION,
-            http_status=400,
-            details=details
+            http_status=status_code,
+            details=None
         )
 
 class NotFoundError(AppError):
@@ -187,13 +189,43 @@ class StorageError(AppError):
     def __init__(
         self,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        status_code: int = 500
     ):
         super().__init__(
             message=message,
             code=ErrorCode.STORAGE,
-            http_status=500,
-            details=details
+            http_status=status_code,
+            details=None
+        )
+
+class ProcessingError(AppError):
+    """File processing error."""
+    
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 400
+    ):
+        super().__init__(
+            message=message,
+            code=ErrorCode.PROCESSING_ERROR,
+            http_status=status_code,
+            details=None
+        )
+
+class OCRError(AppError):
+    """OCR processing error."""
+    
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 500
+    ):
+        super().__init__(
+            message=message,
+            code=ErrorCode.OCR_ERROR,
+            http_status=status_code,
+            details=None
         )
 
 # Error handler registry
@@ -205,6 +237,8 @@ _error_handlers: Dict[Type[Exception], Type[AppError]] = {
     PermissionError: PermissionError,
     RateLimitError: RateLimitError,
     StorageError: StorageError,
+    ProcessingError: ProcessingError,
+    OCRError: OCRError,
 }
 
 def register_error_handler(

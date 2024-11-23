@@ -9,7 +9,8 @@ import aiohttp
 import asyncio
 from datetime import datetime
 from app.config import config
-from app.utils.exceptions import ProcessingError, StorageError, OCRError
+from app.utils.exceptions import ProcessingError, StorageError, OCRError, ValidationError
+from fastapi import UploadFile
 
 # 设置日志
 logger = logging.getLogger(__name__)
@@ -61,8 +62,8 @@ def format_size(size: int) -> str:
     return f"{size:.1f} TB"
 
 async def process_file(
-    file_content: bytes,
-    filename: str,
+    file: UploadFile,
+    config: Dict[str, Any],
     enable_ocr: bool = False,
     enable_vision: bool = True,
     save_all: bool = False,
@@ -70,14 +71,17 @@ async def process_file(
     """Process uploaded file and return markdown formatted text"""
     try:
         # 验证输入
-        if not file_content:
+        if not file:
             raise ProcessingError("Empty file content")
-        if not filename:
+        if not file.filename:
             raise ProcessingError("Missing filename")
         
+        # 验证文件大小
+        if file.size > config['max_file_size']:
+            raise ValidationError(f"File size {file.size} exceeds maximum {config['max_file_size']}")
+            
         # 获取文件类型信息
-        file_type = get_file_type(filename)
-        file_size = len(file_content)
+        file_type = get_file_type(file.filename)
         
         # 获取处理策略
         strategy = config.FILE_PROCESSING["save_all" if save_all else "default"]
@@ -88,13 +92,13 @@ async def process_file(
         # 处理save_all模式
         if save_all:
             # 保存文件并返回链接
-            url = await save_to_storage(file_content, filename)
+            url = await save_to_storage(await file.read(), file.filename)
             template = "image" if file_type["type"] == "image" else "link"
-            response_parts.append(format_markdown(template, text=filename, url=url))
+            response_parts.append(format_markdown(template, text=file.filename, url=url))
             
             # 如果启用OCR且是PDF，提取图片文本
-            if enable_ocr and file_type["type"] == "document" and filename.lower().endswith('.pdf'):
-                pdf_images = extract_images_from_pdf(file_content)
+            if enable_ocr and file_type["type"] == "document" and file.filename.lower().endswith('.pdf'):
+                pdf_images = extract_images_from_pdf(await file.read())
                 if pdf_images:
                     image_texts = []
                     for idx, (image_data, _) in enumerate(pdf_images, 1):
@@ -113,15 +117,15 @@ async def process_file(
         if file_type["type"] in strategy["extract_text_types"]:
             # 提取文本内容
             if "text" in file_type["processors"]:
-                text_content = await extract_text(file_content, file_type["type"])
+                text_content = await extract_text(await file.read(), file_type["type"])
                 if text_content:
                     response_parts.append(text_content)
             
             # 如果启用OCR且支持，提取OCR文本
             if enable_ocr and "ocr" in file_type["processors"]:
-                if file_type["type"] == "document" and filename.lower().endswith('.pdf'):
+                if file_type["type"] == "document" and file.filename.lower().endswith('.pdf'):
                     # 特殊处理PDF
-                    pdf_images = extract_images_from_pdf(file_content)
+                    pdf_images = extract_images_from_pdf(await file.read())
                     if pdf_images:
                         image_texts = []
                         for idx, (image_data, _) in enumerate(pdf_images, 1):
@@ -135,7 +139,7 @@ async def process_file(
                             response_parts.extend(image_texts)
                 else:
                     # 处理其他支持OCR的文件
-                    ocr_result = await perform_ocr(file_content)
+                    ocr_result = await perform_ocr(await file.read())
                     if ocr_result and ocr_result.get('text'):
                         response_parts.append(format_markdown("quote", text=ocr_result['text']))
         
