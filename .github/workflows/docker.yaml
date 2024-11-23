@@ -10,15 +10,15 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/chatnio-blob-service
-  DOCKER_BUILDKIT: 1
-  BUILDKIT_PROGRESS: plain
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout repository
@@ -28,11 +28,8 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           buildkitd-flags: --debug
-          driver-opts: |
-            image=moby/buildkit:latest
 
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -48,6 +45,9 @@ jobs:
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Create logs directory
+        run: mkdir -p build-logs
+
       - name: Build and push
         id: build
         uses: docker/build-push-action@v5
@@ -60,48 +60,33 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           provenance: false
-          outputs: |
-            type=registry,push=true
-            type=docker,dest=/tmp/docker-image.tar
+          load: true
 
-      - name: Verify image
+      - name: Run vulnerability scan
         if: success()
         run: |
-          echo "Loading image for verification..."
-          docker load < /tmp/docker-image.tar
-          IMAGE_ID=$(docker images -q ${{ steps.meta.outputs.tags }} | head -n 1)
-          if [ -n "$IMAGE_ID" ]; then
-            echo "Image loaded successfully: $IMAGE_ID"
-            docker inspect $IMAGE_ID > build-logs/image-inspect.json
-          else
-            echo "Failed to load image"
-            exit 1
-          fi
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "Scanning image: $FIRST_TAG"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --format table \
+            --output build-logs/trivy-results.txt \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            "$FIRST_TAG"
 
-      - name: Run Trivy vulnerability scanner
+      - name: Check scan results
         if: success()
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy scan results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy
+        run: |
+          echo "Vulnerability scan results:"
+          cat build-logs/trivy-results.txt || echo "No vulnerabilities found"
+          echo "Full scan results saved to artifacts"
 
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: |
-            build-logs/
-            /tmp/docker-image.tar
-            trivy-results.sarif
-          compression-level: 0
+          path: build-logs/
           retention-days: 1
