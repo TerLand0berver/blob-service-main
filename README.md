@@ -155,6 +155,389 @@ uvicorn main:app --reload
 }
 ```
 
+## API 详细文档
+
+### 认证 API
+
+#### 1. 用户登录
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "your_secure_password"
+}
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "bearer",
+    "expires_in": 86400
+}
+```
+
+#### 2. 刷新令牌
+```http
+POST /auth/refresh
+Authorization: Bearer your_refresh_token
+Content-Type: application/json
+
+{
+    "refresh_token": "your_refresh_token"
+}
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "bearer",
+    "expires_in": 86400
+}
+```
+
+#### 3. 注销登录
+```http
+POST /auth/logout
+Authorization: Bearer your_access_token
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "message": "Successfully logged out"
+}
+```
+
+### 文件处理 API
+
+#### 1. 上传文本文件
+```http
+POST /upload
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [text_file.txt]
+- save_all: false
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "type": "text",
+    "content": "文件内容...",
+    "error": ""
+}
+```
+
+#### 2. 上传并处理图片
+```http
+POST /upload
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [image.jpg]
+- enable_vision: true
+- enable_ocr: false
+- save_all: true
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "type": "image",
+    "content": {
+        "text": "图片中识别的文本",
+        "url": "https://your-domain.com/static/images/xxx.jpg",
+        "metadata": {
+            "width": 800,
+            "height": 600,
+            "format": "JPEG"
+        }
+    },
+    "error": ""
+}
+```
+
+#### 3. 上传 PDF 文件
+```http
+POST /upload
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [document.pdf]
+- save_all: true
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "type": "pdf",
+    "content": {
+        "text": "PDF文档内容...",
+        "pages": 5,
+        "images": [
+            {
+                "url": "https://your-domain.com/static/images/page1.jpg",
+                "page": 1
+            }
+        ],
+        "metadata": {
+            "title": "文档标题",
+            "author": "作者",
+            "creation_date": "2024-01-01"
+        }
+    },
+    "error": ""
+}
+```
+
+#### 4. 处理音频文件
+```http
+POST /upload
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [audio.mp3]
+- save_all: true
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "type": "audio",
+    "content": {
+        "text": "音频转写文本...",
+        "url": "https://your-domain.com/static/audio/xxx.mp3",
+        "duration": 120,
+        "language": "zh-CN"
+    },
+    "error": ""
+}
+```
+
+#### 5. 处理 Office 文档
+```http
+POST /upload
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [document.docx]
+- save_all: true
+```
+
+响应示例：
+```json
+{
+    "status": true,
+    "type": "docx",
+    "content": {
+        "text": "文档内容...",
+        "images": [
+            {
+                "url": "https://your-domain.com/static/images/image1.jpg",
+                "description": "图片描述"
+            }
+        ],
+        "metadata": {
+            "title": "文档标题",
+            "author": "作者",
+            "last_modified": "2024-01-01"
+        }
+    },
+    "error": ""
+}
+```
+
+### 错误处理
+
+#### 1. 认证错误
+```json
+{
+    "status": false,
+    "error": "Invalid credentials",
+    "error_code": "AUTH_001",
+    "details": {
+        "message": "用户名或密码错误",
+        "attempts_remaining": 4
+    }
+}
+```
+
+#### 2. 文件处理错误
+```json
+{
+    "status": false,
+    "error": "File processing failed",
+    "error_code": "PROC_001",
+    "details": {
+        "message": "不支持的文件类型",
+        "supported_types": ["pdf", "docx", "xlsx", "jpg", "png"]
+    }
+}
+```
+
+#### 3. 存储错误
+```json
+{
+    "status": false,
+    "error": "Storage error",
+    "error_code": "STOR_001",
+    "details": {
+        "message": "存储服务不可用",
+        "storage_type": "s3"
+    }
+}
+```
+
+### 使用示例
+
+#### Python
+```python
+import requests
+
+def upload_file(file_path, token):
+    url = "http://your-domain.com/upload"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    
+    with open(file_path, "rb") as f:
+        files = {"file": f}
+        data = {
+            "enable_vision": "true",
+            "save_all": "true"
+        }
+        response = requests.post(url, headers=headers, files=files, data=data)
+    
+    return response.json()
+
+def login(username, password):
+    url = "http://your-domain.com/auth/login"
+    data = {
+        "username": username,
+        "password": password
+    }
+    response = requests.post(url, json=data)
+    return response.json()
+
+# 使用示例
+token = login("admin", "password")["access_token"]
+result = upload_file("image.jpg", token)
+print(result)
+```
+
+#### JavaScript
+```javascript
+async function login(username, password) {
+    const response = await fetch('http://your-domain.com/auth/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username,
+            password
+        })
+    });
+    return await response.json();
+}
+
+async function uploadFile(file, token) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('enable_vision', 'true');
+    formData.append('save_all', 'true');
+
+    const response = await fetch('http://your-domain.com/upload', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        body: formData
+    });
+    return await response.json();
+}
+
+// 使用示例
+async function example() {
+    try {
+        const auth = await login('admin', 'password');
+        const fileInput = document.querySelector('input[type="file"]');
+        const result = await uploadFile(fileInput.files[0], auth.access_token);
+        console.log(result);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+```
+
+#### cURL
+```bash
+# 登录
+curl -X POST http://your-domain.com/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"your_password"}'
+
+# 上传文件
+curl -X POST http://your-domain.com/upload \
+    -H "Authorization: Bearer your_token" \
+    -F "file=@/path/to/file.pdf" \
+    -F "save_all=true"
+```
+
+### WebSocket 支持
+
+对于需要实时进度反馈的大文件上传，我们也提供了 WebSocket 接口：
+
+```javascript
+const ws = new WebSocket('ws://your-domain.com/ws/upload');
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Upload progress:', data.progress);
+    console.log('Status:', data.status);
+};
+
+ws.onopen = () => {
+    // 发送文件数据
+    ws.send(JSON.stringify({
+        type: 'start_upload',
+        filename: 'large_file.pdf'
+    }));
+};
+```
+
+响应示例：
+```json
+{
+    "type": "progress",
+    "data": {
+        "filename": "large_file.pdf",
+        "progress": 45,
+        "bytes_uploaded": 1048576,
+        "total_bytes": 2097152,
+        "status": "uploading"
+    }
+}
+```
+
 ## 配置说明
 
 ### 基础配置
