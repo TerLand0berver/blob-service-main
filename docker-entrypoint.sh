@@ -9,20 +9,19 @@ handle_error() {
 
 # 函数：检查系统依赖
 check_system_dependencies() {
-    local deps=("ffmpeg" "antiword" "curl")
+    local deps=("ffmpeg" "curl")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
-            echo "Error: Required dependency '$dep' is not installed"
-            exit 1
+            echo "Warning: Recommended system tool '$dep' is not installed"
         fi
     done
 }
 
 # 函数：检查Python依赖
 check_python_dependencies() {
-    local required_packages=("Pillow" "pydub" "python-magic" "pymupdf" "python-docx" "pandas")
+    local required_packages=("PIL" "pydub" "magic" "fitz" "docx" "pandas")
     for package in "${required_packages[@]}"; do
-        if ! python3 -c "import importlib; importlib.import_module('${package,,}')" &> /dev/null; then
+        if ! python3 -c "import importlib; importlib.import_module('${package}')" &> /dev/null; then
             echo "Error: Required Python package '$package' is not installed"
             exit 1
         fi

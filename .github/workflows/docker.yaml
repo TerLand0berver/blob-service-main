@@ -29,21 +29,48 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Add additional repositories
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository universe
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmagic1 ffmpeg antiword
+          sudo apt-get install -y \
+            libmagic1 \
+            ffmpeg \
+            antiword \
+            libgl1-mesa-glx \
+            libglib2.0-0 \
+            libsm6 \
+            libxext6 \
+            libxrender-dev \
+            libmupdf-dev
 
-      - name: Install dependencies
+      - name: Set up test environment
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip wheel setuptools
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov
+          pip install pytest pytest-asyncio pytest-cov pytest-mock
+
+      - name: Create test directories
+        run: |
+          mkdir -p tests/data/temp
+          mkdir -p tests/data/files
+          chmod -R 777 tests/data
 
       - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          STORAGE_TYPE: local
+          STORAGE_PATH: tests/data/files
+          TEMP_PATH: tests/data/temp
         run: |
-          pytest tests/ --cov=app --cov-report=xml
+          pytest tests/ --cov=app --cov-report=xml -v
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -78,7 +105,6 @@ jobs:
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Build and load for scanning
       - name: Build and load Docker image
         uses: docker/build-push-action@v5
         with:
@@ -90,7 +116,6 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ env.PYTHON_VERSION }}
 
-      # Run Trivy scan
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -100,7 +125,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           scanners: vuln
 
-      # Upload scan results
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -108,7 +132,6 @@ jobs:
           sarif_file: 'trivy-results.sarif'
           category: 'Trivy'
 
-      # Build and push all tags
       - name: Build and push Docker image
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
