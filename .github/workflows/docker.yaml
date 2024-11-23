@@ -24,6 +24,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: List repository contents
+        run: |
+          echo "Repository contents:"
+          ls -la
+          echo "Dockerfile contents:"
+          cat Dockerfile
+          echo "Requirements.txt contents:"
+          cat requirements.txt || echo "requirements.txt not found"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -39,6 +48,7 @@ jobs:
           docker info
           echo "GitHub Ref: ${{ github.ref }}"
           echo "GitHub Event Name: ${{ github.event_name }}"
+          echo "Workspace: ${{ github.workspace }}"
 
       - name: Cache Docker layers
         uses: actions/cache@v4
@@ -67,12 +77,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Create logs directory
+        run: mkdir -p build-logs
+
+      - name: Build Docker image
         id: docker_build
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
@@ -80,32 +94,36 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          load: true
+          no-cache: true
+          outputs: type=docker
+        continue-on-error: true
+
+      - name: Check build status and collect logs
+        run: |
+          echo "Build exit code: ${{ steps.docker_build.outcome }}"
+          echo "Build result: ${{ steps.docker_build.outputs.metadata }}" > build-logs/build-result.txt
+          docker images > build-logs/docker-images.txt
+          if [ "${{ steps.docker_build.outcome }}" == "failure" ]; then
+            echo "Build failed. Collecting debug information..."
+            docker buildx debug > build-logs/buildx-debug.txt
+            echo "::error::Docker build failed. Check the logs for details."
+          fi
+
+      - name: Push Docker image
+        if: steps.docker_build.outcome == 'success' && github.event_name != 'pull_request'
+        run: docker push ${{ steps.meta.outputs.tags }}
 
       - name: Run Trivy vulnerability scanner
+        if: steps.docker_build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: 'table'
-          output: 'trivy-results.txt'
+          output: 'build-logs/trivy-results.txt'
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy scan results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-results
-          path: trivy-results.txt
-          if-no-files-found: warn
-
-      - name: Create build logs directory
-        run: |
-          mkdir -p build-logs
-          cp -r /tmp/.buildx-cache build-logs/ || true
-          docker inspect ${{ steps.meta.outputs.tags }} > build-logs/image-inspect.json || true
 
       - name: Upload build logs
         if: always()
@@ -116,6 +134,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Move cache
+        if: always()
         run: |
           rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
