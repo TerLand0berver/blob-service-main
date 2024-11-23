@@ -4,7 +4,7 @@ Image parser implementation.
 import io
 from typing import Dict, Any, Set, Optional
 from PIL import Image, ImageOps
-import pillow_avif_plugin  # For AVIF support
+import pillow_avif  # For AVIF support
 import magic
 
 from .base import BaseParser, ParserError
