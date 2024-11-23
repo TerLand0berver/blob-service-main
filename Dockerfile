@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libjpeg-dev \
     libpng-dev \
+    libtiff5-dev \
+    libfreetype6-dev \
+    libwebp-dev \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,14 +42,15 @@ RUN pip install --no-cache-dir python-jose[cryptography]==3.3.0 \
     cryptography==37.0.4
 
 # 文本处理依赖
-RUN pip install --no-cache-dir pymupdf==1.19.0 \
+RUN pip install --no-cache-dir \
+    pymupdf==1.19.0 \
     pandas==1.3.0 \
     openpyxl==3.0.9 \
     xlrd==2.0.1 \
     python-docx==0.8.11 \
     python-magic==0.4.24 \
     chardet==4.0.0 \
-    Pillow>=9.0.0,<10.0.0
+    "Pillow>=9.0.0,<10.0.0"
 
 # 存储依赖
 RUN pip install --no-cache-dir boto3==1.26.0 \
