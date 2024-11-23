@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     libwebp-dev \
     python3-dev \
     libffi-dev \
+    zlib1g-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -22,8 +24,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir wheel setuptools
 
-# 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
+# 分步安装Python依赖以便于调试
+RUN pip install --no-cache-dir fastapi==0.68.2 pydantic==1.8.2 uvicorn==0.15.0 python-multipart==0.0.5 && \
+    pip install --no-cache-dir aiohttp==3.8.5 aiofiles==0.7.0 && \
+    pip install --no-cache-dir python-jose[cryptography]==3.3.0 passlib[bcrypt]==1.7.4 python-dotenv==0.19.0 && \
+    pip install --no-cache-dir PyJWT==2.4.0 redis==4.3.4 python-json-logger==2.0.7 && \
+    pip install --no-cache-dir boto3==1.26.0 python-magic==0.4.27 && \
+    pip install --no-cache-dir pymupdf==1.19.0 python-docx==0.8.11 chardet==4.0.0 && \
+    pip install --no-cache-dir Pillow==9.5.0 && \
+    pip install --no-cache-dir pyyaml==6.0.1
 
 # 最终运行时镜像
 FROM python:3.9-slim-buster
@@ -37,6 +46,7 @@ RUN apt-get update && apt-get install -y \
     libwebp6 \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
