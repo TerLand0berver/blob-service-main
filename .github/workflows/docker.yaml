@@ -24,51 +24,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: List repository contents
-        run: |
-          echo "Repository contents:"
-          ls -la
-          echo "Dockerfile contents:"
-          cat Dockerfile
-          echo "Requirements.txt contents:"
-          cat requirements.txt || echo "requirements.txt not found"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           buildkitd-flags: --debug
-
-      - name: Print environment information
-        run: |
-          docker version
-          docker buildx version
-          docker info
-          echo "GitHub Ref: ${{ github.ref }}"
-          echo "GitHub Event Name: ${{ github.event_name }}"
-          echo "Workspace: ${{ github.workspace }}"
-
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=long
+          driver-opts: |
+            image=moby/buildkit:latest
 
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
@@ -77,64 +38,70 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Create logs directory
-        run: mkdir -p build-logs
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build Docker image
-        id: docker_build
+      - name: Build and push
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          load: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           platforms: linux/amd64
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-          no-cache: true
-          outputs: type=docker
-        continue-on-error: true
+          provenance: false
+          outputs: |
+            type=registry,push=true
+            type=docker,dest=/tmp/docker-image.tar
 
-      - name: Check build status and collect logs
+      - name: Verify image
+        if: success()
         run: |
-          echo "Build exit code: ${{ steps.docker_build.outcome }}"
-          echo "Build result: ${{ steps.docker_build.outputs.metadata }}" > build-logs/build-result.txt
-          docker images > build-logs/docker-images.txt
-          if [ "${{ steps.docker_build.outcome }}" == "failure" ]; then
-            echo "Build failed. Collecting debug information..."
-            docker buildx debug > build-logs/buildx-debug.txt
-            echo "::error::Docker build failed. Check the logs for details."
+          echo "Loading image for verification..."
+          docker load < /tmp/docker-image.tar
+          IMAGE_ID=$(docker images -q ${{ steps.meta.outputs.tags }} | head -n 1)
+          if [ -n "$IMAGE_ID" ]; then
+            echo "Image loaded successfully: $IMAGE_ID"
+            docker inspect $IMAGE_ID > build-logs/image-inspect.json
+          else
+            echo "Failed to load image"
+            exit 1
           fi
 
-      - name: Push Docker image
-        if: steps.docker_build.outcome == 'success' && github.event_name != 'pull_request'
-        run: docker push ${{ steps.meta.outputs.tags }}
-
       - name: Run Trivy vulnerability scanner
-        if: steps.docker_build.outcome == 'success'
+        if: success()
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          output: 'build-logs/trivy-results.txt'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
 
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
-          path: build-logs/
-          if-no-files-found: warn
-
-      - name: Move cache
-        if: always()
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
+          path: |
+            build-logs/
+            /tmp/docker-image.tar
+            trivy-results.sarif
+          compression-level: 0
+          retention-days: 1
