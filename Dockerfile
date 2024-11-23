@@ -32,6 +32,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 最终运行时镜像
 FROM python:3.9-slim-bullseye
 
+# 添加 backports 源以获取 libavif
+RUN echo "deb http://deb.debian.org/debian bullseye-backports main" >> /etc/apt/sources.list
+
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
@@ -39,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng16-16 \
     libtiff5 \
     libwebp6 \
-    libavif13 \
+    libavif-dev \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libmupdf-dev \
