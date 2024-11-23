@@ -45,7 +45,8 @@ RUN pip install --no-cache-dir pymupdf==1.19.0 \
     xlrd==2.0.1 \
     python-docx==0.8.11 \
     python-magic==0.4.24 \
-    chardet==4.0.0
+    chardet==4.0.0 \
+    Pillow>=9.0.0,<10.0.0
 
 # 存储依赖
 RUN pip install --no-cache-dir boto3==1.26.0 \
@@ -62,6 +63,9 @@ RUN apt-get update && apt-get install -y \
     libxslt1.1 \
     libjpeg62-turbo \
     libpng16-16 \
+    libtiff5 \
+    libfreetype6 \
+    libwebp6 \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
