@@ -1,3 +1,4 @@
+# 构建依赖阶段
 FROM python:3.9-slim-buster as builder
 
 # 安装构建依赖
@@ -16,29 +17,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 COPY requirements.txt .
 
-# 分步安装依赖以便于调试
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir wheel setuptools
-
-# 逐个安装依赖以定位问题
-RUN pip install --no-cache-dir fastapi==0.68.2 && \
-    pip install --no-cache-dir pydantic==1.9.0 && \
-    pip install --no-cache-dir uvicorn==0.15.0 && \
-    pip install --no-cache-dir python-multipart==0.0.5 && \
-    pip install --no-cache-dir aiohttp==3.8.0 && \
-    pip install --no-cache-dir aiofiles==0.7.0 && \
-    pip install --no-cache-dir python-jose[cryptography]==3.3.0 && \
-    pip install --no-cache-dir passlib[bcrypt]==1.7.4 && \
-    pip install --no-cache-dir python-dotenv==0.19.0 && \
-    pip install --no-cache-dir pymupdf==1.19.0 && \
-    pip install --no-cache-dir pandas==1.3.0 && \
-    pip install --no-cache-dir openpyxl==3.0.9 && \
-    pip install --no-cache-dir xlrd==2.0.1 && \
-    pip install --no-cache-dir python-docx==0.8.11 && \
-    pip install --no-cache-dir python-magic==0.4.24 && \
-    pip install --no-cache-dir chardet==4.0.0 && \
-    pip install --no-cache-dir boto3==1.26.0 && \
-    pip install --no-cache-dir botocore==1.29.0
+# 使用 pip 缓存安装依赖
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir wheel setuptools && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 最终镜像
 FROM python:3.9-slim-buster
