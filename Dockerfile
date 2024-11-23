@@ -5,15 +5,13 @@ FROM python:3.9-slim-buster as builder
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libxml2-dev \
-    libxslt-dev \
-    zlib1g-dev \
+    libmagic-dev \
     libjpeg-dev \
     libpng-dev \
     libtiff5-dev \
-    libfreetype6-dev \
     libwebp-dev \
-    python3-dev \
+    libavif-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -24,44 +22,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir wheel setuptools
 
-# 分组安装依赖以提高可维护性
-# 1. 核心依赖
-RUN pip install --no-cache-dir \
-    "fastapi>=0.68.0,<0.69.0" \
-    "pydantic>=1.8.0,<2.0.0" \
-    "uvicorn>=0.15.0,<0.16.0" \
-    "python-multipart>=0.0.5,<0.1.0" \
-    "aiohttp>=3.8.0" \
-    "aiofiles>=0.7.0,<0.8.0"
-
-# 2. 安全和工具依赖
-RUN pip install --no-cache-dir \
-    "python-jose[cryptography]>=3.3.0" \
-    "passlib[bcrypt]>=1.7.4" \
-    "python-dotenv>=0.19.0" \
-    "PyJWT>=2.4.0,<3.0.0" \
-    "redis>=4.3.4,<5.0.0" \
-    "python-json-logger>=2.0.4,<3.0.0" \
-    "cryptography>=37.0.4,<38.0.0"
-
-# 3. 文本处理依赖
-RUN pip install --no-cache-dir \
-    "pymupdf>=1.19.0,<1.24.0" \
-    "pandas>=1.3.0,<2.2.0" \
-    "openpyxl>=3.0.9,<3.2.0" \
-    "xlrd>=2.0.1" \
-    "python-docx>=0.8.11" \
-    "python-magic>=0.4.24,<0.5.0" \
-    "chardet>=4.0.0,<6.0.0"
-
-# 4. 存储依赖
-RUN pip install --no-cache-dir \
-    "boto3>=1.26.0" \
-    "botocore>=1.29.0,<1.33.0"
-
-# 5. 图像处理依赖
-RUN pip install --no-cache-dir \
-    "Pillow>=9.0.0,<10.0.0"
+# 安装Python依赖
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 最终运行时镜像
 FROM python:3.9-slim-buster
@@ -69,14 +31,11 @@ FROM python:3.9-slim-buster
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y \
     libmagic1 \
-    curl \
-    libxml2 \
-    libxslt1.1 \
     libjpeg62-turbo \
     libpng16-16 \
     libtiff5 \
-    libfreetype6 \
     libwebp6 \
+    libavif \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
