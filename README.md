@@ -12,7 +12,7 @@
 
 - 📁 多样化文件处理
   - 文本文件处理
-  - 图片处理和 OCR
+  - 图片处理（支持 JPEG, PNG, GIF, WebP, TIFF, BMP）
   - PDF 文档处理
   - Office 文档处理
   - 音频文件处理
@@ -879,7 +879,7 @@ HEALTH_CHECK_PATH=/health
 ```env
 # 文件处理
 MAX_FILE_SIZE=100MB
-ALLOWED_EXTENSIONS=.jpg,.png,.pdf,.docx
+ALLOWED_EXTENSIONS=.jpg,.png,.gif,.pdf,.docx
 SCAN_VIRUS=true
 PRESERVE_EXIF=false
 GENERATE_THUMBNAIL=true

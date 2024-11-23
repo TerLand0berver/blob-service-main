@@ -4,7 +4,6 @@ Image parser implementation.
 import io
 from typing import Dict, Any, Set, Optional
 from PIL import Image, ImageOps
-import pillow_avif  # For AVIF support
 import magic
 
 from .base import BaseParser, ParserError
@@ -14,12 +13,12 @@ class ImageParser(BaseParser):
     
     SUPPORTED_TYPES = {
         'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-        'image/tiff', 'image/bmp', 'image/avif'
+        'image/tiff', 'image/bmp'
     }
     
     SUPPORTED_EXTENSIONS = {
         '.jpg', '.jpeg', '.png', '.gif', '.webp',
-        '.tiff', '.bmp', '.avif'
+        '.tiff', '.bmp'
     }
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
