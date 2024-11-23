@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libtiff5-dev \
     libwebp-dev \
+    libavif-dev \
     python3-dev \
     libffi-dev \
     zlib1g-dev \
@@ -38,9 +39,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng16-16 \
     libtiff5 \
     libwebp6 \
+    libavif13 \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libmupdf-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非root用户
@@ -51,32 +54,29 @@ WORKDIR /app
 RUN mkdir -p /data /app/logs && \
     chown -R appuser:appuser /data /app/logs
 
-# 从构建阶段复制Python包
+# 复制Python依赖
 COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # 复制应用代码
-COPY . .
-RUN chown -R appuser:appuser /app
+COPY --chown=appuser:appuser . .
 
 # 设置环境变量
-ENV PYTHONUNBUFFERED=1 \
-    CONFIG_DIR=/data \
-    CONFIG_FILE=/data/config.json \
-    PATH="/home/appuser/.local/bin:$PATH" \
-    AUDIT_LOG_PATH=/app/logs/audit.log \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/bin:${PATH}"
 
 # 切换到非root用户
 USER appuser
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+# 设置健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# 暴露端口
-EXPOSE 8000
+# 复制并设置入口点脚本
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
 
-# 启动命令
+# 启动应用
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
