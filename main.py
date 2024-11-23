@@ -122,6 +122,9 @@ async def login(request: Request):
             
         # Validate credentials
         if username != config.ADMIN_USER:
+            # Use constant time comparison to prevent timing attacks
+            from hmac import compare_digest
+            compare_digest(password, "dummy")  # Prevent timing attacks
             return ResponseFormatter.error(
                 message="Invalid credentials",
                 status_code=401
@@ -137,17 +140,22 @@ async def login(request: Request):
                 )
             password = data["new_password"]
             
-        if password != config.ADMIN_PASSWORD:
+        # Verify password using secure hash comparison
+        if not SecurityValidator.verify_password(password, config.ADMIN_PASSWORD):
             return ResponseFormatter.error(
                 message="Invalid credentials",
                 status_code=401
             )
         
-        # Generate JWT token
+        # Generate JWT token with roles and permissions
         token = jwt.encode(
             {
                 "sub": username,
-                "exp": datetime.utcnow() + timedelta(hours=24)
+                "exp": datetime.utcnow() + timedelta(hours=24),
+                "iat": datetime.utcnow(),
+                "jti": secrets.token_hex(16),
+                "roles": ["admin"],
+                "permissions": ["upload", "download", "delete", "configure"]
             },
             config.JWT_SECRET_KEY,
             algorithm="HS256"
@@ -158,14 +166,15 @@ async def login(request: Request):
             data={"token": token}
         )
         
-        # Set cookie
+        # Set secure cookie
         response.set_cookie(
             key="auth_token",
             value=token,
             httponly=True,
-            max_age=86400,  # 24 hours
             secure=True,
-            samesite="strict"
+            samesite="strict",
+            max_age=86400,  # 24 hours
+            path="/"
         )
         
         return response

@@ -1,3 +1,6 @@
+"""
+Configuration module for the Blob Service.
+"""
 import os
 from typing import List, Optional, Dict
 import json
@@ -14,12 +17,49 @@ class Config:
         self.REQUIRE_AUTH: bool = os.getenv("REQUIRE_AUTH", "true").lower() == "true"
         self.JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")
         if not self.JWT_SECRET_KEY:
-            raise ValueError("JWT_SECRET_KEY environment variable must be set")
+            self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
+            os.environ["JWT_SECRET_KEY"] = self.JWT_SECRET_KEY
+            
+        self.JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+        self.TOKEN_EXPIRY: int = int(os.getenv("TOKEN_EXPIRY", "86400"))  # 24 hours
+        self.REFRESH_TOKEN_EXPIRY: int = int(os.getenv("REFRESH_TOKEN_EXPIRY", "604800"))  # 7 days
+        self.MAX_FAILED_ATTEMPTS: int = int(os.getenv("MAX_FAILED_ATTEMPTS", "5"))
+        self.LOCKOUT_DURATION: int = int(os.getenv("LOCKOUT_DURATION", "900"))  # 15 minutes
+        self.PASSWORD_MIN_LENGTH: int = int(os.getenv("PASSWORD_MIN_LENGTH", "12"))
+        self.PASSWORD_REQUIRE_SPECIAL: bool = os.getenv("PASSWORD_REQUIRE_SPECIAL", "true").lower() == "true"
+        self.PASSWORD_REQUIRE_NUMBERS: bool = os.getenv("PASSWORD_REQUIRE_NUMBERS", "true").lower() == "true"
+        self.PASSWORD_REQUIRE_UPPERCASE: bool = os.getenv("PASSWORD_REQUIRE_UPPERCASE", "true").lower() == "true"
+        self.PASSWORD_REQUIRE_LOWERCASE: bool = os.getenv("PASSWORD_REQUIRE_LOWERCASE", "true").lower() == "true"
+        self.MAX_SESSIONS_PER_USER: int = int(os.getenv("MAX_SESSIONS_PER_USER", "5"))
             
         # Security settings
         self.RATE_LIMIT_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
         self.RATE_LIMIT_BURST: int = int(os.getenv("RATE_LIMIT_BURST", "10"))
-        self.SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", "3600"))  
+        self.SESSION_TIMEOUT: int = int(os.getenv("SESSION_TIMEOUT", "3600"))
+        self.ENABLE_AUDIT_LOG: bool = os.getenv("ENABLE_AUDIT_LOG", "true").lower() == "true"
+        self.AUDIT_LOG_PATH: str = os.getenv("AUDIT_LOG_PATH", "logs/audit.log")
+        self.ENABLE_REQUEST_VALIDATION: bool = os.getenv("ENABLE_REQUEST_VALIDATION", "true").lower() == "true"
+        self.ENABLE_RESPONSE_VALIDATION: bool = os.getenv("ENABLE_RESPONSE_VALIDATION", "true").lower() == "true"
+        self.ENABLE_CONTENT_SECURITY_POLICY: bool = os.getenv("ENABLE_CONTENT_SECURITY_POLICY", "true").lower() == "true"
+
+        # Content Security Policy settings
+        self.CONTENT_SECURITY_POLICY: Dict[str, List[str]] = self._parse_json(os.getenv("CONTENT_SECURITY_POLICY", """{
+            "default-src": ["'self'"],
+            "script-src": ["'self'"],
+            "style-src": ["'self'"],
+            "img-src": ["'self'", "data:"],
+            "font-src": ["'self'"],
+            "connect-src": ["'self'"]
+        }"""))
+
+        # Secure headers
+        self.SECURE_HEADERS: Dict[str, str] = self._parse_json(os.getenv("SECURE_HEADERS", """{
+            "X-Frame-Options": "DENY",
+            "X-Content-Type-Options": "nosniff",
+            "X-XSS-Protection": "1; mode=block",
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+            "Referrer-Policy": "strict-origin-when-cross-origin"
+        }"""))
 
         # Whitelist settings
         self.WHITELIST_DOMAINS: List[str] = self._parse_list(os.getenv("WHITELIST_DOMAINS", ""))
@@ -229,6 +269,24 @@ class Config:
             "RATE_LIMIT_PER_MINUTE": str(self.RATE_LIMIT_PER_MINUTE),
             "RATE_LIMIT_BURST": str(self.RATE_LIMIT_BURST),
             "SESSION_TIMEOUT": str(self.SESSION_TIMEOUT),
+            "JWT_ALGORITHM": self.JWT_ALGORITHM,
+            "TOKEN_EXPIRY": str(self.TOKEN_EXPIRY),
+            "REFRESH_TOKEN_EXPIRY": str(self.REFRESH_TOKEN_EXPIRY),
+            "MAX_FAILED_ATTEMPTS": str(self.MAX_FAILED_ATTEMPTS),
+            "LOCKOUT_DURATION": str(self.LOCKOUT_DURATION),
+            "PASSWORD_MIN_LENGTH": str(self.PASSWORD_MIN_LENGTH),
+            "PASSWORD_REQUIRE_SPECIAL": str(self.PASSWORD_REQUIRE_SPECIAL).lower(),
+            "PASSWORD_REQUIRE_NUMBERS": str(self.PASSWORD_REQUIRE_NUMBERS).lower(),
+            "PASSWORD_REQUIRE_UPPERCASE": str(self.PASSWORD_REQUIRE_UPPERCASE).lower(),
+            "PASSWORD_REQUIRE_LOWERCASE": str(self.PASSWORD_REQUIRE_LOWERCASE).lower(),
+            "MAX_SESSIONS_PER_USER": str(self.MAX_SESSIONS_PER_USER),
+            "ENABLE_AUDIT_LOG": str(self.ENABLE_AUDIT_LOG).lower(),
+            "AUDIT_LOG_PATH": self.AUDIT_LOG_PATH,
+            "ENABLE_REQUEST_VALIDATION": str(self.ENABLE_REQUEST_VALIDATION).lower(),
+            "ENABLE_RESPONSE_VALIDATION": str(self.ENABLE_RESPONSE_VALIDATION).lower(),
+            "ENABLE_CONTENT_SECURITY_POLICY": str(self.ENABLE_CONTENT_SECURITY_POLICY).lower(),
+            "CONTENT_SECURITY_POLICY": json.dumps(self.CONTENT_SECURITY_POLICY),
+            "SECURE_HEADERS": json.dumps(self.SECURE_HEADERS),
         }
         
         with open(filepath, "w") as f:

@@ -221,6 +221,104 @@ Response
 - `OCR_ENDPOINT` Paddle OCR Endpoint
     - *e.g.: *http://example.com:8000*
 
+## Security Configuration
+
+### Authentication and Authorization
+
+The service includes comprehensive security features to protect your file storage system:
+
+#### Basic Authentication
+- `ADMIN_USER`: Admin username (Default: admin)
+- `ADMIN_PASSWORD`: Admin password (must meet password policy requirements)
+- `REQUIRE_AUTH`: Enable/disable authentication (Default: true)
+
+#### JWT Configuration
+- `JWT_SECRET_KEY`: Secret key for JWT token generation (min 32 chars)
+- `JWT_ALGORITHM`: JWT signing algorithm (Default: HS256)
+- `TOKEN_EXPIRY`: Access token expiry in seconds (Default: 86400)
+- `REFRESH_TOKEN_EXPIRY`: Refresh token expiry in seconds (Default: 604800)
+
+#### Password Policy
+- `PASSWORD_MIN_LENGTH`: Minimum password length (Default: 12)
+- `PASSWORD_REQUIRE_SPECIAL`: Require special characters (Default: true)
+- `PASSWORD_REQUIRE_NUMBERS`: Require numbers (Default: true)
+- `PASSWORD_REQUIRE_UPPERCASE`: Require uppercase letters (Default: true)
+- `PASSWORD_REQUIRE_LOWERCASE`: Require lowercase letters (Default: true)
+
+#### Access Control
+- `MAX_FAILED_ATTEMPTS`: Maximum failed login attempts (Default: 5)
+- `LOCKOUT_DURATION`: Account lockout duration in seconds (Default: 900)
+- `MAX_SESSIONS_PER_USER`: Maximum concurrent sessions per user (Default: 5)
+- `SESSION_TIMEOUT`: Session timeout in seconds (Default: 3600)
+
+#### Rate Limiting
+- `RATE_LIMIT_PER_MINUTE`: Request rate limit per minute (Default: 60)
+- `RATE_LIMIT_BURST`: Maximum burst size for rate limiting (Default: 10)
+
+#### Domain and IP Whitelisting
+- `WHITELIST_DOMAINS`: Comma-separated list of allowed domains
+- `WHITELIST_IPS`: Comma-separated list of allowed IP addresses
+
+#### Security Headers
+Content Security Policy and secure headers are automatically configured for enhanced security. You can customize them through environment variables:
+
+- `ENABLE_CONTENT_SECURITY_POLICY`: Enable CSP headers (Default: true)
+- `CONTENT_SECURITY_POLICY`: JSON object defining CSP rules
+- `SECURE_HEADERS`: JSON object defining security headers
+
+#### Audit Logging
+- `ENABLE_AUDIT_LOG`: Enable audit logging (Default: true)
+- `AUDIT_LOG_PATH`: Path to audit log file (Default: logs/audit.log)
+
+### Security Best Practices
+
+1. **Authentication**
+   - Always change the default admin password
+   - Use strong passwords that meet the password policy requirements
+   - Enable authentication in production environments
+
+2. **JWT Configuration**
+   - Use a strong, unique JWT secret key
+   - Regularly rotate JWT keys in production
+   - Set appropriate token expiry times
+
+3. **Access Control**
+   - Configure IP and domain whitelisting in production
+   - Set appropriate rate limits based on your usage
+   - Monitor and analyze audit logs regularly
+
+4. **CORS and Headers**
+   - Configure CORS_ALLOW_ORIGINS with specific domains in production
+   - Keep security headers enabled
+   - Regularly review and update security policies
+
+5. **Deployment**
+   - Use HTTPS in production
+   - Keep all dependencies updated
+   - Regularly backup audit logs
+   - Monitor for suspicious activities
+
+### Example Security Configuration
+
+```env
+# Authentication
+ADMIN_USER=admin
+ADMIN_PASSWORD=SuperSecureP@ssw0rd123!
+REQUIRE_AUTH=true
+JWT_SECRET_KEY=H8KvE2pQ9sL4mN7xR3tY6wA1cF5jB0dU
+JWT_ALGORITHM=HS256
+
+# Access Control
+WHITELIST_DOMAINS=example.com,api.example.com
+WHITELIST_IPS=10.0.0.1,10.0.0.2
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_BURST=10
+
+# Security Headers
+ENABLE_CONTENT_SECURITY_POLICY=true
+CONTENT_SECURITY_POLICY={"default-src":["'self'"],"script-src":["'self'"],"style-src":["'self'"],"img-src":["'self'","data:"],"font-src":["'self'"],"connect-src":["'self'"]}
+```
+
 ## Common Errors
 - *Cannot Use `Save All` Options Without Storage Config*:
     - This error occurs when you enable `save_all` option without storage config. You need to set `STORAGE_TYPE` to `local` or other storage type to use this option.
