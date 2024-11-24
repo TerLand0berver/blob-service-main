@@ -36,8 +36,19 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir wheel setuptools build
 
-# 安装Python依赖
-RUN pip install --no-cache-dir --verbose -r requirements.txt || (pip install --no-cache-dir --verbose -r requirements.txt 2>&1 | tee /tmp/pip-error.log && cat /tmp/pip-error.log && exit 1)
+# 分组安装Python依赖以便于调试
+RUN pip install --no-cache-dir fastapi==0.104.1 pydantic==2.4.2 uvicorn[standard]==0.24.0 python-multipart==0.0.6 && \
+    pip install --no-cache-dir aiohttp==3.8.5 aiofiles==23.2.1 && \
+    pip install --no-cache-dir python-jose[cryptography]==3.3.0 passlib[bcrypt]==1.7.4 python-dotenv==1.0.0 && \
+    pip install --no-cache-dir PyJWT==2.8.0 redis==5.0.1 python-json-logger==2.0.7 && \
+    pip install --no-cache-dir boto3==1.29.3 python-magic==0.4.27 && \
+    pip install --no-cache-dir pymupdf==1.23.6 PyPDF2==3.0.1 python-docx==0.8.11 && \
+    pip install --no-cache-dir striprtf==0.0.21 pandas==1.5.3 openpyxl==3.1.2 && \
+    pip install --no-cache-dir chardet==5.2.0 xlrd==2.0.1 odfpy==1.4.1 && \
+    pip install --no-cache-dir Pillow==10.1.0 && \
+    pip install --no-cache-dir pyyaml==6.0.1 aioredis==2.0.1 async-timeout==4.0.3 httpx==0.26.0 && \
+    pip install --no-cache-dir prometheus-client==0.19.0 psutil==5.9.6 && \
+    if [ "$(uname -s)" = "Windows_NT" ]; then pip install --no-cache-dir python-magic-bin==0.4.14; fi
 
 # 最终运行时镜像
 FROM python:${PYTHON_VERSION}-slim-bullseye
@@ -93,9 +104,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # 复制并设置入口点脚本
-COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-ENTRYPOINT ["docker-entrypoint.sh"]
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    ln -s /usr/local/bin/docker-entrypoint.sh /
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # 启动应用
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

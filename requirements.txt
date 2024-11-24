@@ -34,9 +34,6 @@ odfpy==1.4.1
 # Image Processing
 Pillow==10.1.0
 
-# Audio Processing
-pydub==0.25.1
-
 # Video Processing
 
 # Configuration & Logging

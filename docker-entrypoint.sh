@@ -1,5 +1,5 @@
-#!/bin/bash
-set -eo pipefail
+#!/bin/sh
+set -e
 
 # 函数：错误处理
 handle_error() {
@@ -9,46 +9,32 @@ handle_error() {
 
 # 函数：检查系统依赖
 check_system_dependencies() {
-    local deps=("ffmpeg" "curl")
-    for dep in "${deps[@]}"; do
-        if ! command -v "$dep" &> /dev/null; then
-            echo "Warning: Recommended system tool '$dep' is not installed"
-        fi
-    done
+    if ! command -v curl > /dev/null 2>&1; then
+        echo "Warning: Recommended system tool 'curl' is not installed"
+    fi
 }
 
 # 函数：检查Python依赖
 check_python_dependencies() {
-    local required_packages=("PIL" "pydub" "magic" "fitz" "docx" "pandas" "PyPDF2" "numpy" "odf")
-    for package in "${required_packages[@]}"; do
-        if ! python3 -c "import importlib; importlib.import_module('${package}')" &> /dev/null; then
-            echo "Error: Required Python package '$package' is not installed"
-            exit 1
+    for package in PIL pydub magic fitz docx pandas PyPDF2 numpy odf; do
+        if ! python3 -c "import importlib; importlib.import_module('${package}')" > /dev/null 2>&1; then
+            echo "Warning: Python package '$package' is not installed"
         fi
     done
 }
 
 # 设置错误处理
-trap 'handle_error ${LINENO}' ERR
-
-# 检查系统用户
-if ! id -u appuser &>/dev/null; then
-    echo "Error: appuser does not exist"
-    exit 1
-fi
+trap 'handle_error $?' ERR
 
 # 检查目录权限
 echo "Checking directory permissions..."
-directories=("/data" "/data/files" "/data/temp" "/app/logs")
-for dir in "${directories[@]}"; do
+for dir in /data /data/files /data/temp /app/logs; do
     if [ ! -d "$dir" ]; then
-        echo "Error: Required directory $dir does not exist"
-        exit 1
+        echo "Creating directory $dir"
+        mkdir -p "$dir"
     fi
-    if [ ! -w "$dir" ]; then
-        echo "Error: Directory $dir is not writable by appuser"
-        exit 1
-    fi
+    chown -R appuser:appuser "$dir"
+    chmod 755 "$dir"
 done
 
 # 初始化配置文件
@@ -101,7 +87,7 @@ check_python_dependencies
 
 # 验证配置文件
 echo "Validating configuration..."
-if ! python3 -c "import json; json.load(open('/data/config.json'))"; then
+if ! python3 -c "import json; json.load(open('/data/config.json'))" > /dev/null 2>&1; then
     echo "Error: Invalid configuration file"
     exit 1
 fi
