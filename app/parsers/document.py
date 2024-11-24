@@ -6,210 +6,130 @@ from typing import Dict, Any, Optional
 import magic
 import docx
 import PyPDF2
+import csv
 import openpyxl
-from odf import text, teletype
-from odf.opendocument import load
+from pygments import highlight
+from pygments.lexers import get_lexer_for_filename, TextLexer
+from pygments.formatters import TextFormatter
 
 from .base import BaseParser, ParserError
 
 class DocumentParser(BaseParser):
-    """Parser for document files (DOCX, PDF, XLSX, ODT, etc)."""
+    """Parser for document files (DOCX, PDF, CSV, XLSX, and code files)."""
     
     SUPPORTED_TYPES = {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.oasis.opendocument.text',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/pdf'
+        'application/pdf',
+        'text/csv',
+        'text/plain',
+        'text/x-python',
+        'text/x-sh',
+        'text/x-bat',
+        'application/x-shellscript'
     }
     
     SUPPORTED_EXTENSIONS = {
-        '.docx', '.odt', '.xlsx', '.pdf'
+        '.docx', '.xlsx', '.pdf', '.csv', '.txt',
+        '.py', '.sh', '.bash', '.bat', '.cmd',
+        '.js', '.ts', '.java', '.c', '.cpp', '.h',
+        '.hpp', '.cs', '.go', '.rs', '.php', '.rb',
+        '.pl', '.sql', '.yaml', '.yml', '.json',
+        '.xml', '.html', '.css', '.md'
     }
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """Initialize document parser."""
         super().__init__(config)
-        self.extract_text = self.config.get('extract_text', True)
-        self.max_text_length = self.config.get('max_text_length', 10000)
-        self.extract_metadata = self.config.get('extract_metadata', True)
-    
+        self.max_excel_rows = self.config.get('max_excel_rows', 1000)
+        self.max_code_size = self.config.get('max_code_size', 1024 * 1024)  # 1MB
+
     async def can_handle(self, content_type: str, file_extension: str) -> bool:
         """Check if parser can handle this file type."""
         return (content_type.lower() in self.SUPPORTED_TYPES or
                 file_extension.lower() in self.SUPPORTED_EXTENSIONS)
-    
-    async def parse(self, file_data: bytes, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse document and extract metadata."""
-        try:
-            temp_file = io.BytesIO(file_data)
-            mime = magic.Magic(mime=True)
-            content_type = mime.from_buffer(file_data)
-            
-            if 'wordprocessingml.document' in content_type:  # DOCX
-                return await self._parse_docx(temp_file, metadata)
-            elif 'opendocument.text' in content_type:  # ODT
-                return await self._parse_odt(temp_file, metadata)
-            elif 'spreadsheetml.sheet' in content_type:  # XLSX
-                return await self._parse_xlsx(temp_file, metadata)
-            elif 'pdf' in content_type:  # PDF
-                return await self._parse_pdf(temp_file, metadata)
-            else:
-                raise ParserError(f"Unsupported document type: {content_type}")
-        except Exception as e:
-            raise ParserError(f"Failed to parse document: {e}")
-    
+
     async def validate(self, file_data: bytes, metadata: Dict[str, Any]) -> bool:
         """Validate document format."""
         try:
             mime = magic.Magic(mime=True)
             content_type = mime.from_buffer(file_data)
             
-            if content_type not in self.SUPPORTED_TYPES:
-                return False
+            # For code files, check size limit
+            if self._is_code_file(content_type, metadata.get('filename', '')):
+                return len(file_data) <= self.max_code_size
             
-            # Try to open the document based on type
-            temp_file = io.BytesIO(file_data)
-            if 'wordprocessingml.document' in content_type:
-                docx.Document(temp_file)
-            elif 'opendocument.text' in content_type:
-                load(temp_file)
-            elif 'spreadsheetml.sheet' in content_type:
-                openpyxl.load_workbook(temp_file, read_only=True)
-            elif 'pdf' in content_type:
-                PyPDF2.PdfReader(temp_file)
-            return True
+            return content_type in self.SUPPORTED_TYPES or self._is_code_file(content_type, metadata.get('filename', ''))
         except Exception:
             return False
-    
+
+    def _is_code_file(self, content_type: str, filename: str) -> bool:
+        """Check if file is a code file."""
+        if content_type.startswith('text/'):
+            ext = filename.lower().split('.')[-1] if '.' in filename else ''
+            return ext in [x[1:] for x in self.SUPPORTED_EXTENSIONS if x.startswith('.')]
+        return False
+
+    async def parse(self, file_data: bytes, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse document and extract text."""
+        try:
+            mime = magic.Magic(mime=True)
+            content_type = mime.from_buffer(file_data)
+            filename = metadata.get('filename', '')
+            text_content = ""
+
+            if content_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                doc = docx.Document(io.BytesIO(file_data))
+                text_content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            
+            elif content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+                wb = openpyxl.load_workbook(io.BytesIO(file_data), read_only=True)
+                texts = []
+                for sheet in wb.sheetnames:
+                    ws = wb[sheet]
+                    sheet_texts = []
+                    for idx, row in enumerate(ws.rows):
+                        if idx >= self.max_excel_rows:
+                            break
+                        row_text = [str(cell.value) if cell.value is not None else '' for cell in row]
+                        sheet_texts.append('\t'.join(row_text))
+                    texts.append(f"Sheet: {sheet}\n" + '\n'.join(sheet_texts))
+                text_content = '\n\n'.join(texts)
+                wb.close()
+            
+            elif content_type == 'application/pdf':
+                pdf = PyPDF2.PdfReader(io.BytesIO(file_data))
+                text_content = "\n".join([page.extract_text() for page in pdf.pages])
+            
+            elif content_type == 'text/csv':
+                decoded_content = file_data.decode('utf-8', errors='ignore')
+                csv_reader = csv.reader(io.StringIO(decoded_content))
+                text_content = "\n".join([",".join(row) for row in csv_reader])
+            
+            elif self._is_code_file(content_type, filename):
+                # 使用Pygments进行代码解析
+                try:
+                    lexer = get_lexer_for_filename(filename)
+                except Exception:
+                    lexer = TextLexer()
+                
+                formatter = TextFormatter()
+                text_content = highlight(file_data.decode('utf-8', errors='ignore'), lexer, formatter)
+            
+            else:  # 普通文本文件
+                text_content = file_data.decode('utf-8', errors='ignore')
+
+            metadata.update({
+                'content_type': content_type,
+                'text_content': text_content,
+                'size': len(file_data),
+                'is_code': self._is_code_file(content_type, filename)
+            })
+            
+            return metadata
+        except Exception as e:
+            raise ParserError(f"Failed to parse document: {e}")
+
     async def optimize(self, file_data: bytes, metadata: Dict[str, Any]) -> tuple[bytes, Dict[str, Any]]:
-        """Optimize document file."""
-        # Document optimization is not implemented yet
-        # Could implement in future:
-        # - Image compression within documents
-        # - Remove unused styles
-        # - Compress embedded media
+        """No optimization needed for documents."""
         return file_data, metadata
-    
-    async def _parse_docx(self, file_obj: io.BytesIO, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse DOCX document."""
-        doc = docx.Document(file_obj)
-        
-        if self.extract_metadata:
-            core_props = doc.core_properties
-            metadata.update({
-                'author': core_props.author,
-                'created': core_props.created,
-                'modified': core_props.modified,
-                'title': core_props.title,
-                'subject': core_props.subject,
-                'keywords': core_props.keywords,
-                'language': core_props.language,
-                'format': 'DOCX'
-            })
-        
-        if self.extract_text:
-            text = '\n'.join(paragraph.text for paragraph in doc.paragraphs)
-            if len(text) > self.max_text_length:
-                text = text[:self.max_text_length] + "..."
-            metadata['text_preview'] = text
-        
-        metadata['paragraphs'] = len(doc.paragraphs)
-        metadata['sections'] = len(doc.sections)
-        
-        return metadata
-    
-    async def _parse_odt(self, file_obj: io.BytesIO, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse ODT document."""
-        doc = load(file_obj)
-        
-        if self.extract_metadata:
-            metadata.update({
-                'title': doc.meta.get_by_name('title'),
-                'subject': doc.meta.get_by_name('subject'),
-                'keywords': doc.meta.get_by_name('keyword'),
-                'creator': doc.meta.get_by_name('creator'),
-                'creation_date': doc.meta.get_by_name('creation-date'),
-                'format': 'ODT'
-            })
-        
-        if self.extract_text:
-            text = []
-            for element in doc.getElementsByType(text.P):
-                text.append(teletype.extractText(element))
-            text = '\n'.join(text)
-            
-            if len(text) > self.max_text_length:
-                text = text[:self.max_text_length] + "..."
-            metadata['text_preview'] = text
-        
-        return metadata
-    
-    async def _parse_xlsx(self, file_obj: io.BytesIO, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse XLSX document."""
-        wb = openpyxl.load_workbook(file_obj, read_only=True)
-        
-        if self.extract_metadata:
-            metadata.update({
-                'creator': wb.properties.creator,
-                'created': wb.properties.created,
-                'modified': wb.properties.modified,
-                'title': wb.properties.title,
-                'subject': wb.properties.subject,
-                'keywords': wb.properties.keywords,
-                'format': 'XLSX'
-            })
-        
-        metadata['sheets'] = len(wb.sheetnames)
-        metadata['sheet_names'] = wb.sheetnames
-        
-        if self.extract_text:
-            text = []
-            for sheet in wb.sheetnames:
-                ws = wb[sheet]
-                for row in ws.iter_rows(max_row=100):  # Limit to first 100 rows
-                    text.append(' '.join(str(cell.value or '') for cell in row))
-                    if len('\n'.join(text)) > self.max_text_length:
-                        break
-            
-            text = '\n'.join(text)
-            if len(text) > self.max_text_length:
-                text = text[:self.max_text_length] + "..."
-            metadata['text_preview'] = text
-        
-        wb.close()
-        return metadata
-    
-    async def _parse_pdf(self, file_obj: io.BytesIO, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse PDF document."""
-        pdf = PyPDF2.PdfReader(file_obj)
-        
-        if self.extract_metadata:
-            info = pdf.metadata
-            if info:
-                metadata.update({
-                    'title': info.get('/Title', ''),
-                    'author': info.get('/Author', ''),
-                    'subject': info.get('/Subject', ''),
-                    'keywords': info.get('/Keywords', ''),
-                    'creator': info.get('/Creator', ''),
-                    'producer': info.get('/Producer', ''),
-                    'creation_date': info.get('/CreationDate', ''),
-                    'modification_date': info.get('/ModDate', ''),
-                    'format': 'PDF'
-                })
-        
-        metadata['pages'] = len(pdf.pages)
-        
-        if self.extract_text:
-            text = []
-            for page in pdf.pages:
-                text.append(page.extract_text())
-                if len('\n'.join(text)) > self.max_text_length:
-                    break
-            
-            text = '\n'.join(text)
-            if len(text) > self.max_text_length:
-                text = text[:self.max_text_length] + "..."
-            metadata['text_preview'] = text
-        
-        return metadata
