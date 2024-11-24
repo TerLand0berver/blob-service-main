@@ -37,17 +37,18 @@ if ! id -u appuser &>/dev/null; then
     exit 1
 fi
 
-# 创建必要的目录
-echo "Creating and configuring directories..."
+# 检查目录权限
+echo "Checking directory permissions..."
 directories=("/data" "/data/files" "/data/temp" "/app/logs")
 for dir in "${directories[@]}"; do
     if [ ! -d "$dir" ]; then
-        echo "Creating directory: $dir"
-        mkdir -p "$dir"
+        echo "Error: Required directory $dir does not exist"
+        exit 1
     fi
-    echo "Setting permissions for: $dir"
-    chown -R appuser:appuser "$dir"
-    chmod 755 "$dir"
+    if [ ! -w "$dir" ]; then
+        echo "Error: Directory $dir is not writable by appuser"
+        exit 1
+    fi
 done
 
 # 初始化配置文件

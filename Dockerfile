@@ -71,6 +71,11 @@ ENV PYTHONPATH=/app \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/bin:/home/appuser/.local/bin:${PATH}"
 
+# 创建必要的目录并设置权限
+RUN mkdir -p /data /data/files /data/temp /app/logs && \
+    chown -R appuser:appuser /data /app/logs && \
+    chmod 755 /data /data/files /data/temp /app/logs
+
 # 切换到非root用户
 USER appuser
 
