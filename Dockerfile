@@ -69,6 +69,7 @@ RUN apt-get update && \
     libmupdf-dev \
     antiword \
     curl \
+    bash \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -98,7 +99,9 @@ RUN mkdir -p /data /data/files /data/temp /app/logs && \
 COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
     ln -sf /usr/local/bin/docker-entrypoint.sh /home/appuser/bin/ && \
-    chown -R appuser:appuser /home/appuser/bin
+    chown -R appuser:appuser /home/appuser/bin && \
+    # 确保使用bash作为默认shell
+    ln -sf /bin/bash /bin/sh
 
 # 切换到非root用户
 USER appuser
