@@ -427,22 +427,20 @@ async def extract_doc_text(content: bytes) -> Optional[str]:
 async def extract_spreadsheet_text(content: bytes) -> Optional[str]:
     """Extract text from spreadsheet file"""
     try:
-        import pandas as pd
-        # 尝试Excel格式
-        try:
-            df = pd.read_excel(io.BytesIO(content))
-            return df.to_string()
-        except Exception:
-            # 尝试CSV格式
+        # Try CSV format with different encodings
+        for encoding in ['utf-8', 'gbk', 'latin1']:
             try:
-                for encoding in ['utf-8', 'gbk', 'latin1']:
-                    try:
-                        df = pd.read_csv(io.BytesIO(content), encoding=encoding)
-                        return df.to_string()
-                    except UnicodeDecodeError:
-                        continue
+                text = content.decode(encoding)
+                # Simple CSV parsing
+                lines = text.split('\n')
+                if lines:
+                    return '\n'.join(lines)
+            except UnicodeDecodeError:
+                continue
             except Exception:
-                return None
+                pass
+        
+        return None
     except Exception as e:
         logger.error(f"Error extracting spreadsheet text: {str(e)}")
         return None

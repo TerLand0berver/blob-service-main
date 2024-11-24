@@ -2,7 +2,6 @@
 
 import io
 import fitz  # PyMuPDF
-import pandas as pd
 from typing import Optional
 import logging
 import os
@@ -11,47 +10,17 @@ from app.utils.exceptions import ProcessingError
 
 logger = logging.getLogger(__name__)
 
-async def extract_pdf_text(content: bytes) -> Optional[str]:
-    """Extract text from PDF content"""
-    try:
-        with fitz.open(stream=content, filetype="pdf") as doc:
-            text = []
-            for page in doc:
-                text.append(page.get_text())
-            return "\n\n".join(text)
-    except Exception as e:
-        logger.error(f"Error extracting PDF text: {str(e)}")
-        return None
-
-async def extract_spreadsheet_text(content: bytes) -> Optional[str]:
-    """Extract text from spreadsheet content"""
-    try:
-        # Try Excel format first
+async def extract_text_with_encoding(content: bytes) -> Optional[str]:
+    """Try to extract text with different encodings"""
+    encodings = ['utf-8', 'ascii', 'iso-8859-1', 'cp1252', 'utf-16']
+    
+    for encoding in encodings:
         try:
-            df = pd.read_excel(io.BytesIO(content))
-            return df.to_string()
-        except Exception:
-            pass
-        
-        # Try CSV format
-        try:
-            df = pd.read_csv(io.BytesIO(content))
-            return df.to_string()
-        except Exception:
-            pass
-        
-        # Try TSV format
-        try:
-            df = pd.read_csv(io.BytesIO(content), sep='\t')
-            return df.to_string()
-        except Exception:
-            pass
-        
-        raise ProcessingError("Unsupported spreadsheet format")
-        
-    except Exception as e:
-        logger.error(f"Error extracting spreadsheet text: {str(e)}")
-        return None
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    
+    return None
 
 async def extract_doc_text(content: bytes) -> Optional[str]:
     """Extract text from Word document"""
@@ -83,14 +52,37 @@ async def extract_doc_text(content: bytes) -> Optional[str]:
         logger.error(f"Error extracting document text: {str(e)}")
         return None
 
-async def extract_text_with_encoding(content: bytes) -> Optional[str]:
-    """Try to extract text with different encodings"""
-    encodings = ['utf-8', 'ascii', 'iso-8859-1', 'cp1252', 'utf-16']
-    
-    for encoding in encodings:
-        try:
-            return content.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    
-    return None
+async def extract_spreadsheet_text(content: bytes) -> Optional[str]:
+    """Extract text from spreadsheet content"""
+    try:
+        # Try CSV format with different encodings
+        for encoding in ['utf-8', 'gbk', 'latin1']:
+            try:
+                text = content.decode(encoding)
+                # Simple CSV parsing
+                lines = text.split('\n')
+                if lines:
+                    return '\n'.join(lines)
+            except UnicodeDecodeError:
+                continue
+            except Exception:
+                pass
+        
+        # If CSV parsing fails, return None
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error extracting spreadsheet text: {str(e)}")
+        return None
+
+async def extract_pdf_text(content: bytes) -> Optional[str]:
+    """Extract text from PDF content"""
+    try:
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            text = []
+            for page in doc:
+                text.append(page.get_text())
+            return "\n\n".join(text)
+    except Exception as e:
+        logger.error(f"Error extracting PDF text: {str(e)}")
+        return None
