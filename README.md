@@ -35,17 +35,25 @@
 
 ```bash
 # 拉取镜像
-docker pull your-registry/blob-service:latest
+docker pull teraccc/chatnio-blob-service:latest
 
 # 运行容器
 docker run -d \
   -p 8000:8000 \
-  -v /path/to/data:/app/data \
+  -v /path/to/data:/data \
   -e ADMIN_USER=admin \
   -e ADMIN_PASSWORD=your-secure-password \
   -e JWT_SECRET_KEY=your-secret-key \
-  your-registry/blob-service:latest
+  teraccc/chatnio-blob-service:latest
+
+# 或者使用 docker-compose
+docker compose up -d
 ```
+
+注意事项：
+1. 确保挂载卷时使用 `/data` 作为容器内的目标路径
+2. 建议使用 docker-compose 进行部署，可以更方便地管理配置
+3. 首次运行时会自动创建必要的目录结构
 
 ### 手动安装
 
@@ -100,8 +108,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # 存储配置
-STORAGE_TYPE=local  # local, s3, azure
-STORAGE_PATH=/app/data
+STORAGE_TYPE=local  # 存储类型：local 或 s3
+STORAGE_PATH=/data  # 存储根目录
+LOCAL_STORAGE_PATH=/data/files  # 文件存储目录
+LOCAL_STORAGE_DOMAIN=https://your-domain.com  # 访问域名
+LOCAL_STORAGE_SERVE=true  # 是否提供静态文件服务
+LOCAL_STORAGE_URL_PREFIX=/files  # URL前缀
 MAX_CONTENT_LENGTH=100MB
 
 # 安全配置
@@ -142,7 +154,7 @@ S3_ENDPOINT=https://s3.your-region.amazonaws.com
 STORAGE_TYPE=local
 
 # 本地存储路径
-STORAGE_PATH=/app/data
+STORAGE_PATH=/data
 
 # 文件命名策略
 FILENAME_STRATEGY=uuid  # uuid, timestamp, original
