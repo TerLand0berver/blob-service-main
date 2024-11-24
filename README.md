@@ -565,9 +565,9 @@ MIT License
 
 ## 联系方式
 
-- 作者：Your Name
-- 邮箱：your.email@example.com
-- GitHub：https://github.com/yourusername
+- 作者：telagod
+- 邮箱：vnw@live.com
+- GitHub：https://github.com/TerLand0berver
 
 ## 文件存储 API
 
