@@ -90,8 +90,15 @@ ENV PYTHONPATH=/app \
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /data /data/files /data/temp /app/logs && \
-    chown -R appuser:appuser /data /app/logs && \
-    chmod 755 /data /data/files /data/temp /app/logs
+    mkdir -p /home/appuser/bin && \
+    chown -R appuser:appuser /data /app/logs /home/appuser && \
+    chmod 755 /data /data/files /data/temp /app/logs /home/appuser/bin
+
+# 复制并设置入口点脚本
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    ln -sf /usr/local/bin/docker-entrypoint.sh /home/appuser/bin/ && \
+    chown -R appuser:appuser /home/appuser/bin
 
 # 切换到非root用户
 USER appuser
@@ -102,11 +109,6 @@ EXPOSE 8000
 # 设置健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
-
-# 复制并设置入口点脚本
-COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
-    ln -s /usr/local/bin/docker-entrypoint.sh /
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
