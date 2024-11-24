@@ -2,9 +2,11 @@
 set -e
 
 # 函数：错误处理
-handle_error() {
-    echo "Error occurred in script at line: ${1}"
-    exit 1
+error_handler() {
+    local line_no=$1
+    local error_code=$2
+    echo "Error occurred in script at line: ${line_no}, error code: ${error_code}"
+    exit "${error_code}"
 }
 
 # 函数：检查系统依赖
@@ -24,7 +26,7 @@ check_python_dependencies() {
 }
 
 # 设置错误处理
-trap 'handle_error $?' ERR
+trap 'error_handler ${LINENO} $?' ERR
 
 # 检查目录权限
 echo "Checking directory permissions..."
@@ -33,8 +35,8 @@ for dir in /data /data/files /data/temp /app/logs; do
         echo "Creating directory $dir"
         mkdir -p "$dir"
     fi
-    chown -R appuser:appuser "$dir"
-    chmod 755 "$dir"
+    chown -R appuser:appuser "$dir" || true
+    chmod 755 "$dir" || true
 done
 
 # 初始化配置文件
@@ -49,30 +51,26 @@ if [ ! -f "/data/config.json" ]; then
         "s3": {
             "access_key": "${S3_ACCESS_KEY:-}",
             "secret_key": "${S3_SECRET_KEY:-}",
-            "bucket_name": "${S3_BUCKET_NAME:-}",
-            "endpoint_url": "${S3_ENDPOINT_URL:-}",
-            "region_name": "${S3_REGION_NAME:-}"
+            "endpoint": "${S3_ENDPOINT:-}",
+            "bucket": "${S3_BUCKET:-}",
+            "region": "${S3_REGION:-}"
         }
     },
-    "auth": {
-        "required": ${REQUIRE_AUTH:-true},
-        "admin_user": "${ADMIN_USER:-admin}"
-    },
-    "limits": {
-        "max_file_size": ${MAX_FILE_SIZE:-10485760},
-        "max_image_dimension": ${MAX_IMAGE_DIMENSION:-4096},
-        "max_pdf_pages": ${MAX_PDF_PAGES:-1000}
+    "security": {
+        "require_auth": ${REQUIRE_AUTH:-false},
+        "max_file_size": ${MAX_FILE_SIZE:-10485760}
     },
     "features": {
-        "ocr_enabled": ${ENABLE_OCR:-false},
-        "vision_enabled": ${ENABLE_VISION:-true},
-        "azure_speech_enabled": ${ENABLE_AZURE_SPEECH:-false}
-    },
-    "processing": {
-        "image_quality": ${IMAGE_QUALITY:-85},
-        "force_webp": ${FORCE_WEBP:-true},
-        "video_bitrate": "${VIDEO_BITRATE:-2M}",
-        "audio_bitrate": "${AUDIO_BITRATE:-192k}"
+        "enable_ocr": ${ENABLE_OCR:-false},
+        "enable_vision": ${ENABLE_VISION:-false},
+        "image_quality": {
+            "jpeg_quality": ${JPEG_QUALITY:-85},
+            "png_compression": ${PNG_COMPRESSION:-6}
+        },
+        "video_quality": {
+            "max_resolution": "${VIDEO_MAX_RESOLUTION:-720p}",
+            "frame_rate": ${VIDEO_FRAME_RATE:-30}
+        }
     }
 }
 EOF
@@ -80,24 +78,15 @@ EOF
     chmod 644 "/data/config.json"
 fi
 
-# 检查环境
-echo "Checking environment..."
+# 检查依赖
+echo "Checking dependencies..."
 check_system_dependencies
 check_python_dependencies
 
-# 验证配置文件
-echo "Validating configuration..."
-if ! python3 -c "import json; json.load(open('/data/config.json'))" > /dev/null 2>&1; then
-    echo "Error: Invalid configuration file"
-    exit 1
-fi
+# 设置Python环境变量
+export PYTHONUNBUFFERED=1
+export PYTHONDONTWRITEBYTECODE=1
 
-# 清理临时文件
-echo "Cleaning temporary files..."
-find /data/temp -type f -mtime +1 -delete 2>/dev/null || true
-
-echo "Initialization completed successfully"
-
-# 执行主命令
-echo "Starting application with command: $@"
-exec "$@"
+# 启动应用
+echo "Starting application..."
+exec python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
