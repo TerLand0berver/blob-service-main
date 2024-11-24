@@ -2,7 +2,8 @@
 Core configuration management.
 """
 from typing import Dict, Any, Optional, List
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 import json
 import os
 from pathlib import Path
