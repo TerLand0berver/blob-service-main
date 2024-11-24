@@ -5,6 +5,8 @@ import fitz  # PyMuPDF
 import pandas as pd
 from typing import Optional
 import logging
+import os
+import tempfile
 from app.utils.exceptions import ProcessingError
 
 logger = logging.getLogger(__name__)

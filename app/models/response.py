@@ -69,7 +69,7 @@ class ProcessingResult(BaseModel):
                             "height": 600,
                             "format": "JPEG",
                             "mode": "RGB",
-                            "has_alpha": false,
+                            "has_alpha": False,
                             "dpi": [72, 72]
                         }
                     }
