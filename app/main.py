@@ -94,10 +94,11 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import and include routers
-from app.routers import auth, blobs
+from app.routers import auth, blobs, config
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(blobs.router, prefix="/api/blobs", tags=["blobs"])
+app.include_router(config.router, prefix="/api/config", tags=["config"])
 
 if __name__ == "__main__":
     import uvicorn

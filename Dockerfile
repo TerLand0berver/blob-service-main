@@ -19,7 +19,6 @@ RUN apt-get update && \
     zlib1g-dev \
     libmupdf-dev \
     libgl1-mesa-dev \
-    ffmpeg \
     antiword \
     && rm -rf /var/lib/apt/lists/*
 
@@ -51,6 +50,7 @@ RUN apt-get update && \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libmupdf-dev \
+    antiword \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean

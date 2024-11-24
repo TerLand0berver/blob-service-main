@@ -131,6 +131,91 @@
         </div>
 
         <div class="section">
+            <h2>File Processing Settings</h2>
+            <div class="form-group">
+                <label for="processing_mode">Default Processing Mode</label>
+                <select id="processing_mode">
+                    <option value="default">Default (Text Content)</option>
+                    <option value="save_all">Save All (File Links)</option>
+                    <option value="ocr">OCR (Text + Images)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="pdf_max_images">Max PDF Images</label>
+                <input type="number" id="pdf_max_images" value="10">
+            </div>
+            <div class="form-group">
+                <label for="text_extraction_config">Text Extraction Settings</label>
+                <div class="nested-form">
+                    <div class="form-group">
+                        <label for="max_text_length">Max Text Length</label>
+                        <input type="number" id="max_text_length" value="10000">
+                    </div>
+                    <div class="form-group">
+                        <label for="supported_encodings">Supported Encodings (comma-separated)</label>
+                        <input type="text" id="supported_encodings" placeholder="utf-8,gbk,latin1">
+                    </div>
+                    <div class="form-group">
+                        <label>Document Types</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" id="enable_pdf" checked>PDF</label>
+                            <label><input type="checkbox" id="enable_word" checked>Word</label>
+                            <label><input type="checkbox" id="enable_rtf" checked>RTF</label>
+                            <label><input type="checkbox" id="enable_text" checked>Text</label>
+                            <label><input type="checkbox" id="enable_code" checked>Code</label>
+                            <label><input type="checkbox" id="enable_spreadsheet" checked>Spreadsheet</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="image_processing_config">Image Processing Settings</label>
+                <div class="nested-form">
+                    <div class="form-group">
+                        <label for="image_format">Default Image Format</label>
+                        <select id="image_format">
+                            <option value="jpg">JPEG</option>
+                            <option value="png">PNG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="image_quality">Image Quality (1-100)</label>
+                        <input type="number" id="image_quality" value="85" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="max_image_dimension">Max Image Dimension</label>
+                        <input type="number" id="max_image_dimension" value="2048">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="ocr_config">OCR Settings</label>
+                <div class="nested-form">
+                    <div class="form-group">
+                        <label for="ocr_languages">OCR Languages</label>
+                        <select id="ocr_languages" multiple>
+                            <option value="eng">English</option>
+                            <option value="chi_sim">Chinese Simplified</option>
+                            <option value="chi_tra">Chinese Traditional</option>
+                            <option value="jpn">Japanese</option>
+                            <option value="kor">Korean</option>
+                            <option value="rus">Russian</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ocr_timeout">OCR Timeout (seconds)</label>
+                        <input type="number" id="ocr_timeout" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label for="ocr_retry_count">OCR Retry Count</label>
+                        <input type="number" id="ocr_retry_count" value="3">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
             <h2>Limit Settings</h2>
             <div class="form-group">
                 <label for="max_file_size">Max File Size (MB)</label>

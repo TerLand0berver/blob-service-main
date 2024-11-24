@@ -77,6 +77,29 @@ class Config:
         self.MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  
         self.PDF_MAX_IMAGES: int = int(os.getenv("PDF_MAX_IMAGES", "20"))
         
+        # Processing settings
+        self.PROCESSING_MODE: str = os.getenv("PROCESSING_MODE", "default")
+        self.MAX_TEXT_LENGTH: int = int(os.getenv("MAX_TEXT_LENGTH", "10000"))
+        self.SUPPORTED_ENCODINGS: List[str] = self._parse_list(os.getenv("SUPPORTED_ENCODINGS", "utf-8"))
+        
+        # Document type settings
+        self.ENABLE_PDF: bool = os.getenv("ENABLE_PDF", "true").lower() == "true"
+        self.ENABLE_WORD: bool = os.getenv("ENABLE_WORD", "true").lower() == "true"
+        self.ENABLE_RTF: bool = os.getenv("ENABLE_RTF", "true").lower() == "true"
+        self.ENABLE_TEXT: bool = os.getenv("ENABLE_TEXT", "true").lower() == "true"
+        self.ENABLE_CODE: bool = os.getenv("ENABLE_CODE", "true").lower() == "true"
+        self.ENABLE_SPREADSHEET: bool = os.getenv("ENABLE_SPREADSHEET", "true").lower() == "true"
+        
+        # Image processing settings
+        self.IMAGE_FORMAT: str = os.getenv("IMAGE_FORMAT", "jpg")
+        self.IMAGE_QUALITY: int = int(os.getenv("IMAGE_QUALITY", "85"))
+        self.MAX_IMAGE_DIMENSION: int = int(os.getenv("MAX_IMAGE_DIMENSION", "2048"))
+        
+        # OCR settings
+        self.OCR_LANGUAGES: List[str] = self._parse_list(os.getenv("OCR_LANGUAGES", "eng"))
+        self.OCR_TIMEOUT: int = int(os.getenv("OCR_TIMEOUT", "30"))
+        self.OCR_RETRY_COUNT: int = int(os.getenv("OCR_RETRY_COUNT", "3"))
+        
         # Storage settings
         self.STORAGE_TYPE: str = os.getenv("STORAGE_TYPE", "local")
         self.LOCAL_STORAGE_DOMAIN: Optional[str] = os.getenv("LOCAL_STORAGE_DOMAIN")
@@ -287,6 +310,21 @@ class Config:
             "ENABLE_CONTENT_SECURITY_POLICY": str(self.ENABLE_CONTENT_SECURITY_POLICY).lower(),
             "CONTENT_SECURITY_POLICY": json.dumps(self.CONTENT_SECURITY_POLICY),
             "SECURE_HEADERS": json.dumps(self.SECURE_HEADERS),
+            "PROCESSING_MODE": self.PROCESSING_MODE,
+            "MAX_TEXT_LENGTH": str(self.MAX_TEXT_LENGTH),
+            "SUPPORTED_ENCODINGS": ",".join(self.SUPPORTED_ENCODINGS),
+            "ENABLE_PDF": str(self.ENABLE_PDF).lower(),
+            "ENABLE_WORD": str(self.ENABLE_WORD).lower(),
+            "ENABLE_RTF": str(self.ENABLE_RTF).lower(),
+            "ENABLE_TEXT": str(self.ENABLE_TEXT).lower(),
+            "ENABLE_CODE": str(self.ENABLE_CODE).lower(),
+            "ENABLE_SPREADSHEET": str(self.ENABLE_SPREADSHEET).lower(),
+            "IMAGE_FORMAT": self.IMAGE_FORMAT,
+            "IMAGE_QUALITY": str(self.IMAGE_QUALITY),
+            "MAX_IMAGE_DIMENSION": str(self.MAX_IMAGE_DIMENSION),
+            "OCR_LANGUAGES": ",".join(self.OCR_LANGUAGES),
+            "OCR_TIMEOUT": str(self.OCR_TIMEOUT),
+            "OCR_RETRY_COUNT": str(self.OCR_RETRY_COUNT),
         }
         
         with open(filepath, "w") as f:

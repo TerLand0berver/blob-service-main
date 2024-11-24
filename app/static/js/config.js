@@ -71,6 +71,32 @@ class Config {
                     cors_origins: document.getElementById('cors_origins').value.split(',').filter(x => x),
                     log_level: document.getElementById('log_level').value || 'info',
                     request_timeout: parseInt(document.getElementById('request_timeout').value) || 30
+                },
+                processing: {
+                    mode: document.getElementById('processing_mode').value || 'default',
+                    pdf_max_images: parseInt(document.getElementById('pdf_max_images').value) || 10,
+                    text_extraction: {
+                        max_text_length: parseInt(document.getElementById('max_text_length').value) || 10000,
+                        supported_encodings: document.getElementById('supported_encodings').value.split(',').filter(x => x),
+                        enabled_types: {
+                            pdf: document.getElementById('enable_pdf').checked,
+                            word: document.getElementById('enable_word').checked,
+                            rtf: document.getElementById('enable_rtf').checked,
+                            text: document.getElementById('enable_text').checked,
+                            code: document.getElementById('enable_code').checked,
+                            spreadsheet: document.getElementById('enable_spreadsheet').checked
+                        }
+                    },
+                    image_processing: {
+                        format: document.getElementById('image_format').value || 'jpg',
+                        quality: parseInt(document.getElementById('image_quality').value) || 85,
+                        max_dimension: parseInt(document.getElementById('max_image_dimension').value) || 2048
+                    },
+                    ocr: {
+                        languages: Array.from(document.getElementById('ocr_languages').selectedOptions).map(opt => opt.value),
+                        timeout: parseInt(document.getElementById('ocr_timeout').value) || 30,
+                        retry_count: parseInt(document.getElementById('ocr_retry_count').value) || 3
+                    }
                 }
             };
 
@@ -133,6 +159,33 @@ class Config {
         document.getElementById('cors_origins').value = (this.config.server?.cors_origins || []).join(',');
         document.getElementById('log_level').value = this.config.server?.log_level || 'info';
         document.getElementById('request_timeout').value = this.config.server?.request_timeout || 30;
+
+        // Processing settings
+        document.getElementById('processing_mode').value = this.config.processing?.mode || 'default';
+        document.getElementById('pdf_max_images').value = this.config.processing?.pdf_max_images || 10;
+        
+        // Text extraction settings
+        document.getElementById('max_text_length').value = this.config.processing?.text_extraction?.max_text_length || 10000;
+        document.getElementById('supported_encodings').value = (this.config.processing?.text_extraction?.supported_encodings || []).join(',');
+        document.getElementById('enable_pdf').checked = this.config.processing?.text_extraction?.enabled_types?.pdf ?? true;
+        document.getElementById('enable_word').checked = this.config.processing?.text_extraction?.enabled_types?.word ?? true;
+        document.getElementById('enable_rtf').checked = this.config.processing?.text_extraction?.enabled_types?.rtf ?? true;
+        document.getElementById('enable_text').checked = this.config.processing?.text_extraction?.enabled_types?.text ?? true;
+        document.getElementById('enable_code').checked = this.config.processing?.text_extraction?.enabled_types?.code ?? true;
+        document.getElementById('enable_spreadsheet').checked = this.config.processing?.text_extraction?.enabled_types?.spreadsheet ?? true;
+
+        // Image processing settings
+        document.getElementById('image_format').value = this.config.processing?.image_processing?.format || 'jpg';
+        document.getElementById('image_quality').value = this.config.processing?.image_processing?.quality || 85;
+        document.getElementById('max_image_dimension').value = this.config.processing?.image_processing?.max_dimension || 2048;
+
+        // OCR settings
+        const ocrLanguages = this.config.processing?.ocr?.languages || ['eng'];
+        Array.from(document.getElementById('ocr_languages').options).forEach(opt => {
+            opt.selected = ocrLanguages.includes(opt.value);
+        });
+        document.getElementById('ocr_timeout').value = this.config.processing?.ocr?.timeout || 30;
+        document.getElementById('ocr_retry_count').value = this.config.processing?.ocr?.retry_count || 3;
 
         // Update storage settings visibility
         this._updateStorageSettings();

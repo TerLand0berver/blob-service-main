@@ -19,7 +19,7 @@ check_system_dependencies() {
 
 # 函数：检查Python依赖
 check_python_dependencies() {
-    local required_packages=("PIL" "pydub" "magic" "fitz" "docx" "pandas")
+    local required_packages=("PIL" "pydub" "magic" "fitz" "docx" "pandas" "PyPDF2" "numpy" "odf")
     for package in "${required_packages[@]}"; do
         if ! python3 -c "import importlib; importlib.import_module('${package}')" &> /dev/null; then
             echo "Error: Required Python package '$package' is not installed"
