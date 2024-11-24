@@ -9,6 +9,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    make \
+    cmake \
     libmagic-dev \
     libjpeg-dev \
     libpng-dev \
@@ -20,6 +22,10 @@ RUN apt-get update && \
     libmupdf-dev \
     libgl1-mesa-dev \
     antiword \
+    pkg-config \
+    libssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置构建环境
@@ -28,10 +34,10 @@ COPY requirements.txt .
 
 # 安装基础工具
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir wheel setuptools
+    pip install --no-cache-dir wheel setuptools build
 
 # 安装Python依赖
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --verbose -r requirements.txt || (pip install --no-cache-dir --verbose -r requirements.txt 2>&1 | tee /tmp/pip-error.log && cat /tmp/pip-error.log && exit 1)
 
 # 最终运行时镜像
 FROM python:${PYTHON_VERSION}-slim-bullseye
