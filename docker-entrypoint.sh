@@ -16,9 +16,18 @@ check_system_dependencies() {
 
 # 函数：检查Python依赖
 check_python_dependencies() {
-    for package in PIL fitz docx PyPDF2 openpyxl xlrd; do
-        if ! python3 -c "import importlib; importlib.import_module('${package}')" > /dev/null 2>&1; then
-            echo "Warning: Python package '$package' is not installed"
+    required_packages=(
+        "PIL:pillow"
+        "fitz:PyMuPDF"
+        "docx:python-docx"
+        "openpyxl:openpyxl"
+    )
+    
+    for package_pair in "${required_packages[@]}"; do
+        import_name="${package_pair%%:*}"
+        package_name="${package_pair#*:}"
+        if ! python3 -c "import $import_name" > /dev/null 2>&1; then
+            echo "Warning: Python package '$package_name' (import name: $import_name) is not installed"
         fi
     done
 }
@@ -42,54 +51,11 @@ else
     done
 fi
 
-# 初始化配置文件
-if [ ! -f "/data/config.json" ]; then
-    echo "Initializing default configuration..."
-    cat > "/data/config.json" <<EOF
-{
-    "storage": {
-        "type": "${STORAGE_TYPE:-local}",
-        "local_path": "/data/files",
-        "temp_path": "/data/temp",
-        "s3": {
-            "access_key": "${S3_ACCESS_KEY:-}",
-            "secret_key": "${S3_SECRET_KEY:-}",
-            "endpoint": "${S3_ENDPOINT:-}",
-            "bucket": "${S3_BUCKET:-}",
-            "region": "${S3_REGION:-}"
-        }
-    },
-    "security": {
-        "require_auth": ${REQUIRE_AUTH:-false},
-        "max_file_size": ${MAX_FILE_SIZE:-10485760}
-    },
-    "features": {
-        "enable_ocr": ${ENABLE_OCR:-false},
-        "enable_vision": ${ENABLE_VISION:-false},
-        "image_quality": {
-            "jpeg_quality": ${JPEG_QUALITY:-85},
-            "png_compression": ${PNG_COMPRESSION:-6}
-        },
-        "video_quality": {
-            "max_resolution": "${VIDEO_MAX_RESOLUTION:-720p}",
-            "frame_rate": ${VIDEO_FRAME_RATE:-30}
-        }
-    }
-}
-EOF
-    chown appuser:appuser "/data/config.json"
-    chmod 644 "/data/config.json"
-fi
-
 # 检查依赖
 echo "Checking dependencies..."
 check_system_dependencies
 check_python_dependencies
 
-# 设置Python环境变量
-export PYTHONUNBUFFERED=1
-export PYTHONDONTWRITEBYTECODE=1
-
 # 启动应用
 echo "Starting application..."
-exec python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec "$@"
