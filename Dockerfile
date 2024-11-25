@@ -57,14 +57,18 @@ RUN apt-get update && \
 COPY --from=builder /usr/local/lib/python3.9/site-packages/ /usr/local/lib/python3.9/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# 创建应用目录
-WORKDIR /app
-COPY . .
-
 # 创建非root用户和必要目录
 RUN useradd -m -s /bin/bash appuser && \
-    mkdir -p /data /data/files /data/temp /app/logs && \
-    chown -R appuser:appuser /app /data /app/logs
+    mkdir -p /data /data/files /data/temp /app/logs
+
+# 设置入口点脚本
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    chown -R appuser:appuser /app /data /app/logs /usr/local/bin/docker-entrypoint.sh
+
+# 创建应用目录并复制应用代码
+WORKDIR /app
+COPY --chown=appuser:appuser . .
 
 # 设置环境变量
 ENV PYTHONPATH=/app \
@@ -74,13 +78,9 @@ ENV PYTHONPATH=/app \
 # 切换到非root用户
 USER appuser
 
-# 设置入口点
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-ENTRYPOINT ["docker-entrypoint.sh"]
-
 # 暴露端口
 EXPOSE 8000
 
-# 设置默认命令
+# 设置入口点和默认命令
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
