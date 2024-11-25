@@ -43,7 +43,7 @@ RUN pip install --no-cache-dir fastapi==0.104.1 pydantic==2.4.2 pydantic-setting
     pip install --no-cache-dir PyJWT==2.8.0 redis==5.0.1 python-json-logger==2.0.7 && \
     pip install --no-cache-dir boto3==1.29.3 python-magic==0.4.27 && \
     pip install --no-cache-dir pymupdf==1.23.6 PyPDF2==3.0.1 python-docx==0.8.11 docx2txt==0.8 && \
-    pip install --no-cache-dir chardet==5.2.0 openpyxl==3.1.2 pygments==2.17.2 && \
+    pip install --no-cache-dir chardet==5.2.0 openpyxl==3.1.2 && \
     pip install --no-cache-dir Pillow==10.1.0 && \
     pip install --no-cache-dir pyyaml==6.0.1 aioredis==2.0.1 async-timeout==4.0.3 httpx==0.26.0 && \
     pip install --no-cache-dir prometheus-client==0.19.0 psutil==5.9.6 azure-cognitiveservices-speech==1.31.0 && \

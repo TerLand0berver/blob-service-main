@@ -81,9 +81,7 @@ class Config {
                         enabled_types: {
                             pdf: document.getElementById('enable_pdf').checked,
                             word: document.getElementById('enable_word').checked,
-                            rtf: document.getElementById('enable_rtf').checked,
                             text: document.getElementById('enable_text').checked,
-                            code: document.getElementById('enable_code').checked,
                             spreadsheet: document.getElementById('enable_spreadsheet').checked
                         }
                     },
@@ -169,9 +167,7 @@ class Config {
         document.getElementById('supported_encodings').value = (this.config.processing?.text_extraction?.supported_encodings || []).join(',');
         document.getElementById('enable_pdf').checked = this.config.processing?.text_extraction?.enabled_types?.pdf ?? true;
         document.getElementById('enable_word').checked = this.config.processing?.text_extraction?.enabled_types?.word ?? true;
-        document.getElementById('enable_rtf').checked = this.config.processing?.text_extraction?.enabled_types?.rtf ?? true;
         document.getElementById('enable_text').checked = this.config.processing?.text_extraction?.enabled_types?.text ?? true;
-        document.getElementById('enable_code').checked = this.config.processing?.text_extraction?.enabled_types?.code ?? true;
         document.getElementById('enable_spreadsheet').checked = this.config.processing?.text_extraction?.enabled_types?.spreadsheet ?? true;
 
         // Image processing settings

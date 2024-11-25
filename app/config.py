@@ -85,9 +85,7 @@ class Config:
         # Document type settings
         self.ENABLE_PDF: bool = os.getenv("ENABLE_PDF", "true").lower() == "true"
         self.ENABLE_WORD: bool = os.getenv("ENABLE_WORD", "true").lower() == "true"
-        self.ENABLE_RTF: bool = os.getenv("ENABLE_RTF", "true").lower() == "true"
         self.ENABLE_TEXT: bool = os.getenv("ENABLE_TEXT", "true").lower() == "true"
-        self.ENABLE_CODE: bool = os.getenv("ENABLE_CODE", "true").lower() == "true"
         self.ENABLE_SPREADSHEET: bool = os.getenv("ENABLE_SPREADSHEET", "true").lower() == "true"
         
         # Image processing settings
@@ -121,15 +119,11 @@ class Config:
             "spreadsheet": {
                 "max_rows": 10000,
                 "max_cols": 1000,
-                "supported_formats": ["xlsx", "xls", "csv", "tsv"]
+                "supported_formats": ["xlsx", "csv"]
             },
             "document": {
-                "supported_formats": ["doc", "docx", "txt", "rtf"],
+                "supported_formats": ["docx", "txt", "pdf"],
                 "max_size_mb": 50
-            },
-            "code": {
-                "supported_formats": ["py", "js", "java", "cpp", "c", "cs", "php", "rb", "go", "sql"],
-                "max_size_mb": 10
             },
             "encodings": ["utf-8", "ascii", "iso-8859-1", "cp1252", "utf-16"],
             "general": {
@@ -161,81 +155,17 @@ class Config:
 
         # File type mappings with descriptions
         self.FILE_TYPE_MAPPINGS = self._parse_json(os.getenv("FILE_TYPE_MAPPINGS", """{
-            "image": {
-                "extensions": ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "svg", "ico"],
-                "icon": "",
-                "description": "Image",
-                "processors": ["ocr", "vision"]
-            },
             "document": {
-                "extensions": ["pdf", "doc", "docx", "txt", "rtf", "odt", "md", "rst", "tex"],
+                "extensions": ["pdf", "docx", "txt"],
                 "icon": "",
                 "description": "Document",
-                "processors": ["text", "ocr"]
-            },
-            "code": {
-                "extensions": [
-                    "py", "pyi", "pyx", "pyd", "ipynb",  
-                    "js", "jsx", "ts", "tsx", "mjs", "cjs",  
-                    "java", "class", "jar",  
-                    "c", "cpp", "cxx", "cc", "h", "hpp", "hxx",  
-                    "cs", "csx", "vb",  
-                    "go", "mod",  
-                    "rs", "rlib",  
-                    "php", "phtml", "php3", "php4", "php5", "php7",  
-                    "rb", "rbw", "rake", "gemspec",  
-                    "swift",  
-                    "kt", "kts",  
-                    "scala", "sc",  
-                    "pl", "pm", "t",  
-                    "sh", "bash", "zsh", "fish",  
-                    "sql", "mysql", "pgsql",  
-                    "r", "rmd",  
-                    "lua",  
-                    "m", "mm",  
-                    "dart",  
-                    "ex", "exs",  
-                    "elm",  
-                    "erl", "hrl",  
-                    "fs", "fsi", "fsx", "fsscript",  
-                    "hs", "lhs",  
-                    "html", "htm", "xhtml", "shtml",  
-                    "css", "scss", "sass", "less", "styl",  
-                    "xml", "xsl", "xslt", "wsdl", "yml", "yaml", "json", "toml"  
-                ],
-                "icon": "",
-                "description": "Code",
                 "processors": ["text"]
             },
             "spreadsheet": {
-                "extensions": ["xls", "xlsx", "csv", "tsv", "ods"],
+                "extensions": ["xlsx", "csv"],
                 "icon": "",
                 "description": "Spreadsheet",
                 "processors": ["text"]
-            },
-            "presentation": {
-                "extensions": ["ppt", "pptx", "odp", "key"],
-                "icon": "",
-                "description": "Presentation",
-                "processors": ["text", "ocr"]
-            },
-            "audio": {
-                "extensions": ["mp3", "wav", "ogg", "m4a", "flac", "aac", "wma", "aiff", "alac"],
-                "icon": "",
-                "description": "Audio",
-                "processors": []
-            },
-            "video": {
-                "extensions": ["mp4", "avi", "mov", "wmv", "flv", "mkv", "webm", "m4v", "mpeg", "3gp"],
-                "icon": "",
-                "description": "Video",
-                "processors": []
-            },
-            "archive": {
-                "extensions": ["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso"],
-                "icon": "",
-                "description": "Archive",
-                "processors": []
             }
         }"""))
 
@@ -246,8 +176,8 @@ class Config:
                 "extract_images": true
             },
             "default": {
-                "extract_text_types": ["document", "code", "spreadsheet"],
-                "ignore_types": ["video", "audio", "archive"]
+                "extract_text_types": ["document", "spreadsheet"],
+                "ignore_types": []
             }
         }"""))
 
@@ -315,9 +245,7 @@ class Config:
             "SUPPORTED_ENCODINGS": ",".join(self.SUPPORTED_ENCODINGS),
             "ENABLE_PDF": str(self.ENABLE_PDF).lower(),
             "ENABLE_WORD": str(self.ENABLE_WORD).lower(),
-            "ENABLE_RTF": str(self.ENABLE_RTF).lower(),
             "ENABLE_TEXT": str(self.ENABLE_TEXT).lower(),
-            "ENABLE_CODE": str(self.ENABLE_CODE).lower(),
             "ENABLE_SPREADSHEET": str(self.ENABLE_SPREADSHEET).lower(),
             "IMAGE_FORMAT": self.IMAGE_FORMAT,
             "IMAGE_QUALITY": str(self.IMAGE_QUALITY),

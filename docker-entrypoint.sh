@@ -16,7 +16,7 @@ check_system_dependencies() {
 
 # 函数：检查Python依赖
 check_python_dependencies() {
-    for package in PIL pydub magic fitz docx pandas PyPDF2 numpy odf; do
+    for package in PIL fitz docx PyPDF2 openpyxl; do
         if ! python3 -c "import importlib; importlib.import_module('${package}')" > /dev/null 2>&1; then
             echo "Warning: Python package '$package' is not installed"
         fi

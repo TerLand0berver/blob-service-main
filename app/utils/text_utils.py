@@ -28,14 +28,14 @@ class TextExtractionConfig:
         return self.config.get("spreadsheet", {
             "max_rows": 10000,
             "max_cols": 1000,
-            "supported_formats": ["xlsx", "xls", "csv", "tsv"]
+            "supported_formats": ["xlsx", "csv"]
         })
     
     @property
     def document_config(self) -> Dict:
         """Get document extraction configuration"""
         return self.config.get("document", {
-            "supported_formats": ["doc", "docx", "txt", "rtf"],
+            "supported_formats": ["docx", "txt", "pdf"],
             "max_size_mb": 50
         })
     
