@@ -27,6 +27,7 @@ python-docx==0.8.11
 docx2txt==0.8
 chardet==5.2.0
 openpyxl==3.1.2  # Excel support
+xlrd>=2.0.1,<3.0.0  # Legacy Excel support
 
 # Image Processing
 Pillow==10.1.0

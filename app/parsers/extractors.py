@@ -3,11 +3,13 @@
 import io
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import fitz  # PyMuPDF
-import pandas as pd
 import docx
 import chardet
+import openpyxl
+import csv
+import xlrd
 from app.utils.exceptions import ProcessingError
 from app.utils.text_utils import text_config
 
@@ -52,32 +54,137 @@ class PDFExtractor(BaseExtractor):
             raise ProcessingError(f"Failed to extract PDF content: {str(e)}")
 
 class SpreadsheetExtractor(BaseExtractor):
-    """Spreadsheet file text extractor"""
+    """Extract text from spreadsheet files"""
     
-    async def extract(self) -> str:
-        try:
-            # Try different formats
+    def _extract_xlsx(self) -> str:
+        """Extract text from Excel file using openpyxl"""
+        wb = openpyxl.load_workbook(io.BytesIO(self.content), read_only=True)
+        text_parts = []
+        
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            sheet_texts = []
+            
+            # Count rows and columns
+            row_count = 0
+            max_col_count = 0
+            for row in ws.rows:
+                row_count += 1
+                col_count = len([cell for cell in row if cell.value is not None])
+                max_col_count = max(max_col_count, col_count)
+                
+                if row_count == 1:  # First row
+                    self.config.validate_spreadsheet_extraction(0, col_count, 'xlsx')
+            
+            # Validate total rows
+            self.config.validate_spreadsheet_extraction(row_count, max_col_count, 'xlsx')
+            
+            # Extract text
+            for row in ws.rows:
+                row_text = []
+                for cell in row:
+                    if cell.hyperlink:
+                        cell_text = f"[{cell.value}]({cell.hyperlink.target})"
+                    else:
+                        cell_text = str(cell.value) if cell.value is not None else ''
+                    row_text.append(cell_text)
+                if any(text.strip() for text in row_text):  # Skip empty rows
+                    sheet_texts.append('\t'.join(row_text))
+            
+            if sheet_texts:
+                text_parts.append(f"Sheet: {sheet_name}")
+                text_parts.append('\n'.join(sheet_texts))
+        
+        wb.close()
+        return '\n\n'.join(text_parts)
+    
+    def _extract_xls(self) -> str:
+        """Extract text from legacy Excel file using xlrd"""
+        wb = xlrd.open_workbook(file_contents=self.content)
+        text_parts = []
+        
+        for sheet_idx in range(wb.nsheets):
+            sheet = wb.sheet_by_index(sheet_idx)
+            sheet_texts = []
+            
+            # Validate dimensions
+            self.config.validate_spreadsheet_extraction(sheet.nrows, sheet.ncols, 'xls')
+            
+            # Extract text
+            for row_idx in range(sheet.nrows):
+                row_text = []
+                for col_idx in range(sheet.ncols):
+                    cell = sheet.cell(row_idx, col_idx)
+                    cell_text = str(cell.value) if cell.value else ''
+                    row_text.append(cell_text)
+                if any(text.strip() for text in row_text):  # Skip empty rows
+                    sheet_texts.append('\t'.join(row_text))
+            
+            if sheet_texts:
+                text_parts.append(f"Sheet: {wb.sheet_names()[sheet_idx]}")
+                text_parts.append('\n'.join(sheet_texts))
+        
+        return '\n\n'.join(text_parts)
+    
+    def _extract_csv(self) -> str:
+        """Extract text from CSV file"""
+        # Try different encodings
+        encodings = ['utf-8', 'gbk', 'latin1']
+        text = None
+        
+        for encoding in encodings:
             try:
-                # Try Excel format
-                df = pd.read_excel(io.BytesIO(self.content), sheet_name=None)
-                text_parts = []
-                for name, sheet in df.items():
-                    self.config.validate_spreadsheet_extraction(
-                        len(sheet), len(sheet.columns), 'xlsx'
-                    )
-                    text_parts.append(f"Sheet: {name}")
-                    text_parts.append(sheet.to_string())
-                return '\n\n'.join(text_parts)
-            except Exception:
+                text = self.content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if text is None:
+            # If all encodings fail, use chardet to detect encoding
+            detected = chardet.detect(self.content)
+            if detected and detected['encoding']:
                 try:
-                    # Try CSV format
-                    df = pd.read_csv(io.BytesIO(self.content))
-                    self.config.validate_spreadsheet_extraction(
-                        len(df), len(df.columns), 'csv'
-                    )
-                    return df.to_string()
-                except Exception:
-                    raise ProcessingError("Unsupported spreadsheet format")
+                    text = self.content.decode(detected['encoding'])
+                except UnicodeDecodeError:
+                    text = self.content.decode('utf-8', errors='ignore')
+            else:
+                text = self.content.decode('utf-8', errors='ignore')
+        
+        # Parse CSV
+        reader = csv.reader(text.splitlines())
+        rows = []
+        row_count = 0
+        max_col_count = 0
+        
+        for row in reader:
+            row_count += 1
+            col_count = len([col for col in row if col.strip()])
+            max_col_count = max(max_col_count, col_count)
+            
+            if row_count == 1:  # First row
+                self.config.validate_spreadsheet_extraction(0, col_count, 'csv')
+            
+            if any(col.strip() for col in row):  # Skip empty rows
+                rows.append('\t'.join(row))
+        
+        # Validate total rows
+        self.config.validate_spreadsheet_extraction(row_count, max_col_count, 'csv')
+        
+        return '\n'.join(rows)
+
+    async def extract(self) -> str:
+        """Extract text from spreadsheet file"""
+        try:
+            ext = os.path.splitext(self.filename)[1].lower()
+            
+            if ext == '.xlsx':
+                return self._extract_xlsx()
+            elif ext == '.xls':
+                return self._extract_xls()
+            elif ext == '.csv':
+                return self._extract_csv()
+            else:
+                raise ProcessingError(f"Unsupported spreadsheet format: {ext}")
             
         except Exception as e:
             logger.error(f"Error extracting spreadsheet content: {str(e)}")
